@@ -13,13 +13,15 @@
     <div class="top__meta" id="scanMeta">—</div>
     <div class="top__actions">
       <span class="pill" id="llmPill" title="Claude tailoring and answers">Claude: —</span>
+      <a class="btn" id="settingsBtn" href="#/settings/profile">Settings</a>
       <button class="btn" id="tailorTopBtn" title="Tailor the top 5 matched jobs">Tailor top 5</button>
       <button class="btn btn--primary" id="scanBtn">Scan boards</button>
       <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
     </div>
   </header>
 
-  <main class="wrap">
+  <main class="wrap" id="jobsView">
+    <div class="setup-note" id="setupBanner" hidden></div>
     <section class="kpis" id="kpis" aria-label="Pipeline totals"></section>
 
     <section class="card pipeline" aria-labelledby="pipeTitle">
@@ -49,6 +51,8 @@
       <div class="pager"><button class="btn" id="prev">← Prev</button><span class="muted" id="pageInfo"></span><button class="btn" id="next">Next →</button></div>
     </section>
   </main>
+
+  <main class="wrap settings" id="settings" hidden></main>
 
   <aside class="drawer" id="drawer" aria-hidden="true" aria-labelledby="dTitle">
     <div class="drawer__head">

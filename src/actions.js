@@ -39,6 +39,27 @@ export async function scan(db, { log = () => {} } = {}) {
   return { ...summary, newMatches };
 }
 
+/**
+ * Re-score open jobs after preferences change. Only untouched "matched" rows are updated
+ * or dropped; anything you've tailored, approved, applied to or skipped is left alone.
+ */
+export function rescore(db, { log = () => {} } = {}) {
+  const prefs = loadProfile().preferences;
+  const min = prefs.minScore ?? 60;
+  let added = 0, updated = 0, removed = 0;
+  for (const row of db.openJobs()) {
+    const app = db.app(row.id);
+    if (app && app.status !== 'matched') continue;
+    const r = score(rowToJob(row), prefs);
+    const keep = !r.excluded && r.score >= min;
+    if (!app && keep) { db.setApp(row.id, { status: 'matched', score: r.score, reasons: JSON.stringify(r.reasons) }); added++; }
+    else if (app && keep) { if (app.score !== r.score || app.reasons !== JSON.stringify(r.reasons)) { db.setApp(row.id, { score: r.score, reasons: JSON.stringify(r.reasons) }); updated++; } }
+    else if (app && !keep) { db.deleteApp(row.id); removed++; }
+  }
+  log(`Re-scored with min score ${min}: ${added} new matches, ${updated} updated, ${removed} dropped.`);
+  return { added, updated, removed, minScore: min };
+}
+
 export async function tailorJob(db, id, { log = () => {} } = {}) {
   if (!hasCredentials()) throw new Error('Set ANTHROPIC_API_KEY to tailor résumés with Claude.');
   const { tailor } = await import('./tailor.js');

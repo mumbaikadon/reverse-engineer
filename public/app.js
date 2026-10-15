@@ -1,4 +1,5 @@
 // applio dashboard — vanilla JS over the local JSON API.
+import { initSettings, showSettings } from './settings.js';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const api = async (path, opts = {}) => {
@@ -74,6 +75,12 @@ async function loadSummary() {
   });
   $('#legend').innerHTML = [...STAGES, ...Object.keys(EXCEPTIONS)].map(k => `<li data-k="${k}"><span class="swatch" style="background:${colorOf(k)}"></span>${EXCEPTIONS[k] ? EXCEPTIONS[k].icon + ' ' : ''}${LABEL[k]} <b>${(c[k] || 0).toLocaleString()}</b></li>`).join('');
   $('#legend').querySelectorAll('li').forEach(li => li.onclick = () => setStatus(li.dataset.k));
+
+  const missing = Object.entries(s.setup).filter(([, ok]) => !ok).map(([k]) => k === 'resume' ? 'résumé' : k);
+  $('#setupBanner').hidden = !missing.length;
+  $('#setupBanner').innerHTML = missing.length ? `<b>Finish setting up:</b> add your ${missing.join(', ')}. <a class="btn btn--primary" href="#/settings/${s.setup.profile ? (s.setup.resume ? 'companies' : 'resume') : 'profile'}">Open settings</a>` : '';
+  $('#scanBtn').disabled = !s.setup.companies || !s.setup.profile;
+  $('#scanBtn').title = $('#scanBtn').disabled ? 'Add your profile and companies in Settings first' : 'Pull new postings from every company in your watchlist';
 
   const ls = s.lastScan;
   $('#scanMeta').textContent = ls ? `Last scan ${ago(ls.at)} · ${ls.open.toLocaleString()} roles across ${ls.boards} boards · ${ls.fresh} new · ${ls.matches} new matches` : 'No scan yet — press "Scan boards".';
@@ -229,8 +236,30 @@ async function refreshAll() { await Promise.all([loadSummary(), loadJobs()]); if
 $('#scanBtn').onclick = async () => { try { track(await post('/api/scan')); } catch (e) { toast(e.message, true); } };
 $('#tailorTopBtn').onclick = async () => { try { const t = await post('/api/tailor-top', { n: 5 }); t.length ? track(t) : toast('No matched jobs waiting.'); } catch (e) { toast(e.message, true); } };
 
+// ---- routing: #/ (jobs) and #/settings/<tab> ------------------------------
+function route() {
+  const m = location.hash.match(/^#\/settings(?:\/(\w+))?/);
+  $('#jobsView').hidden = !!m;
+  $('#settings').hidden = !m;
+  $('#settingsBtn').classList.toggle('is-active', !!m);
+  if (m) { closeDrawer(); showSettings(m[1] || 'profile').catch(e => toast(e.message, true)); scrollTo(0, 0); }
+  else refreshAll();
+}
+initSettings({
+  toast,
+  onSave: async kind => {
+    await loadSummary();
+    if (kind === 'profile') {
+      // New preferences change scores; recompute untouched matches in the background.
+      try { track(await post('/api/rescore')); } catch (e) { toast(e.message, true); }
+    }
+    if (kind === 'companies' && state.summary?.setup.profile) toast('Saved. Press “Scan boards” to pull jobs from the new list.');
+  },
+});
+addEventListener('hashchange', route);
+
 // Resume watching tasks that were already running when the page loaded.
 api('/api/tasks').then(all => { const live = all.filter(t => t.status === 'queued' || t.status === 'running'); if (live.length) track(live); });
 renderSeg();
-refreshAll();
-setInterval(loadSummary, 60_000);
+route();
+setInterval(() => { if ($('#settings').hidden) loadSummary(); }, 60_000);

@@ -2,13 +2,14 @@
 // Binds to 127.0.0.1 by default. It can submit job applications, so it is not meant to be
 // exposed to a network; state-changing requests also require a same-origin header.
 import { createServer } from 'node:http';
-import { existsSync, readdirSync, readFileSync, statSync, createReadStream } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, createReadStream } from 'node:fs';
 import { extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { open, STATUSES } from './db.js';
 import * as actions from './actions.js';
 import { hasCredentials, MODEL } from './llm.js';
-import { loadCompanies, loadProfile } from './profile.js';
+import { loadCompanies, loadProfile, readConfig, saveProfile, saveResume, saveCompanies } from './profile.js';
+import { detectBoards } from './detect.js';
 
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
 const OUT = resolve('out');
@@ -44,7 +45,7 @@ function send(res, status, body, headers = {}) {
 }
 async function readBody(req) {
   let raw = '';
-  for await (const chunk of req) { raw += chunk; if (raw.length > 1e5) throw Object.assign(new Error('body too large'), { status: 413 }); }
+  for await (const chunk of req) { raw += chunk; if (raw.length > 1e6) throw Object.assign(new Error('body too large'), { status: 413 }); }
   return raw ? JSON.parse(raw) : {};
 }
 function serveFile(res, path) {
@@ -93,7 +94,7 @@ export function serve({ port = 4317, host = '127.0.0.1', dbPath = 'data/applio.d
       if (req.method !== 'GET' && req.method !== 'HEAD' && req.headers['x-applio'] !== '1') return send(res, 403, { error: 'missing X-Applio header' });
 
       if (req.method === 'GET' && (path === '/' || path === '/index.html')) return serveFile(res, join(PUBLIC, 'index.html'));
-      if (req.method === 'GET' && /^\/(app\.js|app\.css)$/.test(path)) return serveFile(res, join(PUBLIC, path.slice(1)));
+      if (req.method === 'GET' && /^\/(app\.js|app\.css|settings\.js)$/.test(path)) return serveFile(res, join(PUBLIC, path.slice(1)));
       if (req.method === 'GET' && path.startsWith('/files/')) {
         const p = join(OUT, path.slice('/files/'.length));
         return inside(OUT, p) ? serveFile(res, p) : send(res, 403, 'forbidden');
@@ -103,11 +104,32 @@ export function serve({ port = 4317, host = '127.0.0.1', dbPath = 'data/applio.d
         const counts = Object.fromEntries(db.counts().map(r => [r.status, r.n]));
         let profile = null, boards = 0;
         try { const p = loadProfile(); profile = { name: p.name, minScore: p.preferences?.minScore ?? 60 }; boards = loadCompanies().length; } catch { /* not initialised yet */ }
-        return send(res, 200, { counts, statuses: STATUSES, open: db.openCount(), lastScan: JSON.parse(db.getMeta('last_scan') || 'null'), companies: db.companies(), boards, profile, llm: { enabled: hasCredentials(), model: MODEL } });
+        const { exists } = readConfig();
+        return send(res, 200, { setup: exists, counts, statuses: STATUSES, open: db.openCount(), lastScan: JSON.parse(db.getMeta('last_scan') || 'null'), companies: db.companies(), boards, profile, llm: { enabled: hasCredentials(), model: MODEL } });
       }
       if (path === '/api/jobs' && req.method === 'GET') {
         return send(res, 200, db.list(Object.fromEntries(url.searchParams)));
       }
+      // ---- settings: profile, résumé, companies --------------------------------
+      if (path === '/api/config' && req.method === 'GET') return send(res, 200, readConfig());
+      if (path === '/api/config/profile' && req.method === 'PUT') { saveProfile((await readBody(req)).profile); return send(res, 200, readConfig()); }
+      if (path === '/api/config/resume' && req.method === 'PUT') { saveResume((await readBody(req)).markdown); return send(res, 200, readConfig()); }
+      if (path === '/api/config/companies' && req.method === 'PUT') { saveCompanies((await readBody(req)).companies); return send(res, 200, readConfig()); }
+      if (path === '/api/config/detect' && req.method === 'POST') {
+        const { input, name } = await readBody(req);
+        return send(res, 200, await detectBoards(input, { name }));
+      }
+      if (path === '/api/config/resume/preview' && req.method === 'POST') {
+        const { markdown } = await readBody(req);
+        const { renderPdf } = await import('./render.js');
+        mkdirSync(OUT, { recursive: true });
+        await renderPdf(String(markdown || ''), join(OUT, 'resume-preview.pdf'));
+        return send(res, 200, { file: 'resume-preview.pdf' });
+      }
+      if (path === '/api/rescore' && req.method === 'POST') {
+        return send(res, 202, startTask('rescore', undefined, 'Re-score jobs', log => actions.rescore(db, { log })));
+      }
+
       if (path === '/api/tasks' && req.method === 'GET') {
         return send(res, 200, [...tasks.values()].reverse());
       }

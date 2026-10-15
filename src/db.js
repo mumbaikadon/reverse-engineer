@@ -77,6 +77,7 @@ function wrap(db) {
       if (fields.status && fields.status !== cur.status) this.log(jobId, 'status', `${cur.status || '—'} → ${fields.status}`);
       return row;
     },
+    deleteApp: jobId => db.prepare('DELETE FROM applications WHERE job_id = ?').run(jobId),
     log(jobId, kind, detail) {
       db.prepare('INSERT INTO events (job_id, kind, detail, at) VALUES (?, ?, ?, ?)').run(jobId, kind, String(detail), now());
     },

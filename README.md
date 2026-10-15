@@ -27,14 +27,17 @@ npx playwright install chromium
 # 3. Check everything works: 20 tests, including a real fill-and-submit on a local test form
 npm test
 
-# 4. Create your own config files (git-ignored, so your details never get committed)
-node src/cli.js init
-
-# 5. Start the dashboard
+# 4. Start the dashboard
 npm run dashboard
 ```
 
-Open **http://localhost:4317** and press **Scan boards**. The first scan pulls about 5,000 postings from the example companies in roughly 15 seconds.
+Open **http://localhost:4317**. A banner asks you to finish setup; click **Open settings** and fill in the three tabs:
+
+- **Profile:** contact details, work eligibility, the titles, skills and locations you want, and standing answers to questions that come up often. Saving re-scores your existing matches.
+- **Résumé:** paste your résumé into the editor or open a `.md`/`.txt` file. A live preview and checklist show whether tailoring can find your Summary, Experience bullets and Skills. **Preview as PDF** shows the file employers receive.
+- **Companies:** paste a careers-page link or job-board link, or just type a company name, then press **Find board**. applio works out whether it's on Greenhouse, Lever, Ashby or Workday and shows how many roles are open. Click **Add**, then **Save companies**.
+
+Then go back and press **Scan boards**. Your settings are saved to `config/profile.json`, `resume/resume.md` and `config/companies.json`. These are git-ignored, so your details are never committed. You can still edit them by hand, or run `node src/cli.js init` to start from the examples.
 
 ### Trying it out safely
 
@@ -42,7 +45,7 @@ Nothing reaches an employer until you approve a job **and** press Submit (or run
 
 1. **Scan** with the example profile and résumé still in place, and look through the matches. Click a row to see why it matched.
 2. Click **Dry run** on any job. A headless browser opens the real application form, fills it in, takes a screenshot and stops without submitting. Afterwards the panel shows every field, the value used and where it came from, with a link to the screenshot.
-3. Put in your real details: `resume/resume.md`, `config/profile.json` (contact info, work authorization, `preferences`) and `config/companies.json` (the companies you want). Scan again and the scores update to match you.
+3. Change any setting (**Settings → Profile**, **Résumé** or **Companies**), save, and scan again. Scores update to match.
 4. To turn on résumé tailoring and AI-written answers, stop the server (Ctrl-C), set your key and restart:
    - macOS / Linux: `export ANTHROPIC_API_KEY=sk-ant-...`
    - Windows PowerShell: `$env:ANTHROPIC_API_KEY="sk-ant-..."`
@@ -58,7 +61,8 @@ To start over, delete the `data/` folder (the database) and `out/` (generated PD
 
 `npm run dashboard` (same as `node src/cli.js serve [--port 4317]`) serves a local web UI over the same database the CLI uses:
 
-- **Header:** last scan summary, Claude on/off, **Scan boards**, **Tailor top 5**, light/dark toggle.
+- **Header:** last scan summary, Claude on/off, **Settings**, **Scan boards**, **Tailor top 5**, light/dark toggle.
+- **Settings:** forms for your profile, a résumé editor with live preview, and a company watchlist that finds a company's job board from a link or name (see above).
 - **Totals:** open roles, matched, tailored, approved, submitted and needs-you counts. Click one to filter the table.
 - **Pipeline bar:** how many jobs sit at each stage (hover for counts, click to filter). Stages run light to dark blue; "needs you" (⚠) and "failed" (✕) use warning colors.
 - **Jobs table:** filter by status, search, company and minimum score; sort by match, newest, recently updated or company.
