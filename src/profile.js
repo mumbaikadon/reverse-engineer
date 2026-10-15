@@ -101,7 +101,7 @@ export function saveResume(md) {
   return md;
 }
 
-/** Candidate context shared (and cached) across every Claude call. */
+/** Candidate context shared (and cached) across every AI call. */
 export function candidateContext(profile, resume) {
   const { preferences, ...facts } = profile;
   return `<candidate_profile>\n${JSON.stringify(facts, null, 2)}\n</candidate_profile>\n\n<resume>\n${resume}\n</resume>`;

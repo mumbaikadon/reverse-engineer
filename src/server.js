@@ -7,7 +7,8 @@ import { extname, join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { open, STATUSES } from './db.js';
 import * as actions from './actions.js';
-import { hasCredentials, MODEL } from './llm.js';
+import { providerInfo, testProvider } from './llm.js';
+import { publicIntegrations, saveIntegrations, PROVIDERS } from './integrations.js';
 import { loadCompanies, loadProfile, readConfig, saveProfile, saveResume, saveCompanies, saveOriginalPdf, paths } from './profile.js';
 import { detectBoards } from './detect.js';
 
@@ -110,16 +111,23 @@ export function serve({ port = 4317, host = '127.0.0.1', dbPath = 'data/applio.d
         let profile = null, boards = 0;
         try { const p = loadProfile(); profile = { name: p.name, minScore: p.preferences?.minScore ?? 60 }; boards = loadCompanies().length; } catch { /* not initialised yet */ }
         const { exists } = readConfig();
-        return send(res, 200, { setup: exists, counts, statuses: STATUSES, open: db.openCount(), lastScan: JSON.parse(db.getMeta('last_scan') || 'null'), companies: db.companies(), boards, profile, llm: { enabled: hasCredentials(), model: MODEL } });
+        return send(res, 200, { setup: exists, counts, statuses: STATUSES, open: db.openCount(), lastScan: JSON.parse(db.getMeta('last_scan') || 'null'), companies: db.companies(), boards, profile, llm: (() => { const a = providerInfo(); return { enabled: !!a, provider: a?.name || null, label: a?.label || null, model: a?.model || null }; })() });
       }
       if (path === '/api/jobs' && req.method === 'GET') {
         return send(res, 200, db.list(Object.fromEntries(url.searchParams)));
       }
       // ---- settings: profile, résumé, companies --------------------------------
-      if (path === '/api/config' && req.method === 'GET') return send(res, 200, { ...readConfig(), llm: hasCredentials() });
+      if (path === '/api/config' && req.method === 'GET') return send(res, 200, { ...readConfig(), llm: providerInfo() });
       if (path === '/api/config/profile' && req.method === 'PUT') { saveProfile((await readBody(req)).profile); return send(res, 200, readConfig()); }
       if (path === '/api/config/resume' && req.method === 'PUT') { saveResume((await readBody(req)).markdown); return send(res, 200, readConfig()); }
       if (path === '/api/config/companies' && req.method === 'PUT') { saveCompanies((await readBody(req)).companies); return send(res, 200, readConfig()); }
+      if (path === '/api/integrations' && req.method === 'GET') return send(res, 200, publicIntegrations());
+      if (path === '/api/integrations' && req.method === 'PUT') return send(res, 200, saveIntegrations(await readBody(req)));
+      if (path === '/api/integrations/test' && req.method === 'POST') {
+        const { provider, apiKey } = await readBody(req);
+        if (!PROVIDERS[provider]) return send(res, 400, { error: 'unknown provider' });
+        return send(res, 200, await testProvider(provider, typeof apiKey === 'string' && apiKey.trim() ? apiKey.trim() : undefined));
+      }
       if (path === '/api/config/detect' && req.method === 'POST') {
         const { input, name } = await readBody(req);
         return send(res, 200, await detectBoards(input, { name }));

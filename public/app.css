@@ -222,3 +222,9 @@ label.btn.is-busy { opacity: .6; pointer-events: none; }
 #importMsg .note { margin: 0 0 8px; }
 .pdf-choice { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); margin-bottom: 12px; }
 @media (max-width: 760px) { .upload { flex-direction: column; } }
+.integ .grid { margin-top: 4px; }
+.keybox { display: flex; gap: 6px; } .keybox input { flex: 1; font-family: var(--mono); }
+.integ__actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; }
+.provider-pick { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 8px 0; }
+a.pill { text-decoration: none; }
+.warn { color: #b07800; }

@@ -1,6 +1,6 @@
 // Turn an uploaded résumé PDF into the Markdown layout tailoring expects.
 // Step 1 (always): extract text with PDF.js and rebuild headings/bullets from font size and layout.
-// Step 2 (optional, needs ANTHROPIC_API_KEY): have Claude fix the structure without changing the wording.
+// Step 2 (optional, needs an AI provider in Settings → Integrations): fix the structure without changing the wording.
 import { structured, hasCredentials } from './llm.js';
 
 const BULLET = /^\s*[•●▪■◦‣∙·\-–—*]\s*/;
@@ -110,7 +110,7 @@ Rules:
 - Keep the candidate's wording exactly. Do not rewrite, summarise, add, or drop any facts, numbers, dates or skills.
 - Only fix structure: join lines that were wrapped, split run-together bullets, remove page numbers and repeated headers/footers, and put each piece under the right heading.`;
 
-export async function tidyWithClaude(text) {
+export async function tidyWithAI(text) {
   const { data } = await structured({
     instructions: TIDY_INSTRUCTIONS,
     context: 'Return the Markdown in the "markdown" field.',
@@ -135,8 +135,8 @@ export async function importResumePdf(buffer, { tidy = false } = {}) {
   }
   let markdown = linesToMarkdown(lines), tidied = false;
   if (tidy && hasCredentials() && text.trim()) {
-    try { markdown = await tidyWithClaude(text); tidied = true; }
-    catch (e) { warnings.push(`Claude clean-up failed (${e.message}); showing the basic conversion.`); }
+    try { markdown = await tidyWithAI(text); tidied = true; }
+    catch (e) { warnings.push(`AI clean-up failed (${e.message}); showing the basic conversion.`); }
   }
   if (!/^##\s*Experience/im.test(markdown)) warnings.push('No "Experience" heading was recognised. Add "## Experience" above your jobs so tailoring can find your bullets.');
   if ((markdown.match(/^- /gm) || []).length < 3) warnings.push('Few bullet points were recognised. Start each accomplishment with "- ".');

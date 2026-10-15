@@ -3,6 +3,7 @@ data/
 out/
 config/profile.json
 config/companies.json
+config/integrations.json
 resume/resume.md
 resume/*.pdf
 .env

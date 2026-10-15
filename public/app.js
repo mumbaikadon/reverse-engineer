@@ -84,9 +84,9 @@ async function loadSummary() {
 
   const ls = s.lastScan;
   $('#scanMeta').textContent = ls ? `Last scan ${ago(ls.at)} · ${ls.open.toLocaleString()} roles across ${ls.boards} boards · ${ls.fresh} new · ${ls.matches} new matches` : 'No scan yet — press "Scan boards".';
-  $('#llmPill').textContent = s.llm.enabled ? `Claude: on` : 'Claude: off';
+  $('#llmPill').textContent = s.llm.enabled ? `AI: ${s.llm.label}` : 'AI: off';
   $('#llmPill').className = `pill ${s.llm.enabled ? 'on' : 'off'}`;
-  $('#llmPill').title = s.llm.enabled ? `Tailoring and answers use ${s.llm.model}` : 'Set ANTHROPIC_API_KEY and restart to enable tailoring and AI answers';
+  $('#llmPill').title = s.llm.enabled ? `Tailoring and answers use ${s.llm.label} (${s.llm.model}). Change in Settings → Integrations.` : 'Add a Claude or OpenAI key in Settings → Integrations to enable tailoring and AI answers';
   $('#tailorTopBtn').disabled = !s.llm.enabled || !c.matched;
 
   const sel = $('#company'), cur = sel.value;
@@ -160,7 +160,7 @@ async function renderJob(id) {
     <div class="sec actions">
       ${statusPill(status)} ${app?.score != null ? `<span class="muted">score ${app.score}</span>` : ''}
       <span style="flex:1"></span>
-      <button class="btn" data-act="tailor" ${!llm || d.busy.length ? 'disabled' : ''} title="${llm ? 'Rewrite résumé + cover letter for this job' : 'Needs ANTHROPIC_API_KEY'}">${tailor ? 'Re-tailor' : 'Tailor'}</button>
+      <button class="btn" data-act="tailor" ${!llm || d.busy.length ? 'disabled' : ''} title="${llm ? `Rewrite résumé + cover letter for this job with ${esc(state.summary.llm.label)}` : 'Set up an AI provider in Settings → Integrations'}">${tailor ? 'Re-tailor' : 'Tailor'}</button>
       <button class="btn" data-act="approve" ${status === 'approved' ? 'disabled' : ''}>Approve</button>
       <button class="btn" data-act="dry" ${d.busy.length ? 'disabled' : ''} title="Fill the form and screenshot it without sending">Dry run</button>
       <button class="btn btn--primary" data-act="submit" ${status !== 'approved' || d.busy.length ? 'disabled' : ''} title="${status === 'approved' ? 'Fill and submit the application' : 'Approve first'}">Submit</button>

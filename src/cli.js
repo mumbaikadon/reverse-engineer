@@ -38,7 +38,8 @@ Usage: applio <command> [options]
   jobs [--min 60] [--limit 25] [--all]
                              List matched jobs, best first
   show <job>                 Posting details, score reasons and history
-  tailor <job> | --top N     Tailor résumé + cover letter with Claude (needs ANTHROPIC_API_KEY)
+  tailor <job> | --top N     Tailor résumé + cover letter with the AI provider
+                             (set it up in dashboard Settings → Integrations, or ANTHROPIC_API_KEY / OPENAI_API_KEY)
   approve <job>              Mark tailored materials as reviewed and OK to send
   apply <job> [--submit] [--headed] [--base]
                              Fill the application form. Without --submit it stops before

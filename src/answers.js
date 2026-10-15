@@ -1,4 +1,4 @@
-// Turn application-form questions into answers: profile facts first, Claude for the rest.
+// Turn application-form questions into answers: profile facts first, the AI provider for the rest.
 import { structured, hasCredentials } from './llm.js';
 import { candidateContext } from './profile.js';
 
@@ -58,7 +58,7 @@ export function fromProfile(q, p) {
     if (!re.test(l)) continue;
     let v = f();
     if (v === undefined || v === null || v === '') continue;
-    // A choice question needs one of its own options; otherwise let Claude decide.
+    // A choice question needs one of its own options; otherwise let the AI decide.
     if (o?.length && typeof v === 'string' && !o.includes(v)) v = pick(o, v) ?? pick(o, new RegExp(`^${v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i'));
     if (v !== undefined && v !== null) return v;
   }

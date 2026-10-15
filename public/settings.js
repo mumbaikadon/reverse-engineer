@@ -70,10 +70,10 @@ export async function showSettings(tab = 'profile') {
     </div>
     ${!Object.values(cfg.exists).every(Boolean) ? `<div class="setup-note">First-time setup: the forms below start from an example. Replace it with your details and press <b>Save</b> on each tab: ${['profile', 'resume', 'companies'].map(k => `<span class="${cfg.exists[k] ? 'ok' : 'bad'}">${cfg.exists[k] ? '✓' : '○'} ${k === 'resume' ? 'résumé' : k}</span>`).join(' · ')}</div>` : ''}
     <div class="seg settings__tabs" role="tablist">
-      ${[['profile', 'Profile'], ['resume', 'Résumé'], ['companies', 'Companies']].map(([k, l]) => `<a role="tab" href="#/settings/${k}" class="${tab === k ? 'is-active' : ''}">${l}${dirty[k] ? ' •' : ''}</a>`).join('')}
+      ${[['profile', 'Profile'], ['resume', 'Résumé'], ['companies', 'Companies'], ['integrations', 'Integrations']].map(([k, l]) => `<a role="tab" href="#/settings/${k}" class="${tab === k ? 'is-active' : ''}">${l}${dirty[k] ? ' •' : ''}</a>`).join('')}
     </div>
     <div id="settingsBody"></div>`;
-  ({ profile: renderProfile, resume: renderResume, companies: renderCompanies })[tab]?.($('#settingsBody'));
+  ({ profile: renderProfile, resume: renderResume, companies: renderCompanies, integrations: renderIntegrations })[tab]?.($('#settingsBody'));
 }
 
 function markDirty(k) {
@@ -229,7 +229,7 @@ function renderResume(el) {
         <div>
           <h2>Upload your résumé PDF</h2>
           <p class="muted small">applio reads the text out of it and lays it out below so tailoring can work with it. Check the result, fix anything that came out wrong, then press <b>Save résumé</b>. Scanned or image-only PDFs have no text to read; paste the text instead.</p>
-          <label class="check small"><input type="checkbox" id="tidy" ${cfg.llm ? 'checked' : 'disabled'}> Let Claude fix the layout (keeps your wording)${cfg.llm ? '' : ' — needs ANTHROPIC_API_KEY'}</label>
+          <label class="check small"><input type="checkbox" id="tidy" ${cfg.llm ? 'checked' : 'disabled'}> Let ${cfg.llm ? esc(cfg.llm.label) : 'AI'} fix the layout (keeps your wording)${cfg.llm ? '' : ' — <a href="#/settings/integrations">set up an AI provider</a>'}</label>
         </div>
         <label class="btn btn--primary" id="pdfLabel">Choose PDF…<input type="file" accept="application/pdf,.pdf" id="pdfFile" hidden></label>
       </div>
@@ -269,14 +269,14 @@ function renderResume(el) {
     if (ta.value.trim() && dirty.resume && !confirm('Replace your unsaved edits with the text from this PDF?')) return;
     const label = $('#pdfLabel', el), msg = $('#importMsg', el);
     label.classList.add('is-busy'); label.firstChild.textContent = 'Reading…';
-    msg.innerHTML = `<p class="muted small"><span class="spin"></span> Reading ${esc(f.name)}${$('#tidy', el).checked ? ' and tidying the layout with Claude' : ''}…</p>`;
+    msg.innerHTML = `<p class="muted small"><span class="spin"></span> Reading ${esc(f.name)}${$('#tidy', el).checked ? ' and tidying the layout' : ''}…</p>`;
     try {
       const res = await fetch(`/api/config/resume/import${$('#tidy', el).checked ? '?tidy=1' : ''}`, { method: 'POST', headers: { 'content-type': 'application/pdf', 'x-applio': '1' }, body: f });
       const r = await res.json();
       if (!res.ok) throw new Error(r.error || `HTTP ${res.status}`);
       ta.value = draft.resume = r.markdown; update(); markDirty('resume');
       cfg.originalPdf = true;
-      msg.innerHTML = `<div class="import-ok small">✓ Read ${r.pages} page${r.pages === 1 ? '' : 's'} from ${esc(f.name)}${r.tidied ? ', layout tidied by Claude' : ''}. Review the text below, then press <b>Save résumé</b>.</div>`
+      msg.innerHTML = `<div class="import-ok small">✓ Read ${r.pages} page${r.pages === 1 ? '' : 's'} from ${esc(f.name)}${r.tidied ? `, layout tidied by ${esc(cfg.llm?.label || 'AI')}` : ''}. Review the text below, then press <b>Save résumé</b>.</div>`
         + r.warnings.map(w => `<p class="note">${esc(w)}</p>`).join('');
     } catch (err) { msg.innerHTML = `<p class="note">${esc(err.message)}</p>`; }
     finally { label.classList.remove('is-busy'); label.firstChild.textContent = 'Choose PDF…'; }
@@ -384,4 +384,99 @@ function renderCompanies(el) {
     };
   });
   el.querySelector('[data-save=companies]').onclick = () => save('companies', { companies: list });
+}
+
+// ---- Integrations ------------------------------------------------------
+const PROVIDER_INFO = {
+  claude: { keyUrl: 'https://console.anthropic.com/settings/keys', keyPlaceholder: 'sk-ant-…', blurb: 'Anthropic’s Claude models.' },
+  openai: { keyUrl: 'https://platform.openai.com/api-keys', keyPlaceholder: 'sk-…', blurb: 'OpenAI’s GPT models.' },
+};
+
+async function renderIntegrations(el) {
+  el.innerHTML = '<p class="muted small"><span class="spin"></span> Loading…</p>';
+  let st;
+  try { st = await api('/api/integrations'); } catch (e) { el.innerHTML = `<p class="note">${esc(e.message)}</p>`; return; }
+  const models = {}; // filled by "Test connection"
+  const statusLine = p => !p.configured ? '<span class="muted">Not set up</span>'
+    : p.source === 'env' ? `<span class="ok">✓ Using <span class="mono">${esc(p.envVar)}</span> from the environment</span> <span class="muted mono">${esc(p.keyHint)}</span>`
+    : `<span class="ok">✓ Key saved</span> <span class="muted mono">${esc(p.keyHint)}</span>`;
+
+  const card = name => {
+    const p = st[name], info = PROVIDER_INFO[name];
+    return `<div class="card integ" data-name="${name}">
+      <div class="card__head"><h2>${esc(p.label)}</h2><span class="small">${statusLine(p)}</span></div>
+      <p class="muted small">${info.blurb} Get a key at <a href="${info.keyUrl}" target="_blank" rel="noopener">${new URL(info.keyUrl).host}</a>. Usage is billed to your account by ${esc(p.label === 'Claude' ? 'Anthropic' : 'OpenAI')}.</p>
+      <div class="grid">
+        <div class="field"><label for="key-${name}">API key</label>
+          <div class="keybox"><input id="key-${name}" type="password" autocomplete="off" spellcheck="false" placeholder="${p.configured ? 'Leave blank to keep the current key' : info.keyPlaceholder}">
+          <button type="button" class="icon-btn" data-show aria-label="Show key">👁</button></div></div>
+        <div class="field"><label for="model-${name}">Model</label>
+          <input id="model-${name}" list="models-${name}" value="${esc(p.model || '')}" placeholder="${name === 'openai' ? 'Press Test connection to list models' : esc(p.defaultModel)}" spellcheck="false">
+          <datalist id="models-${name}"></datalist></div>
+      </div>
+      <div class="integ__actions">
+        <button type="button" class="btn" data-test>Test connection</button>
+        <span class="small" data-result></span>
+        <span style="flex:1"></span>
+        ${p.source === 'saved' ? '<button type="button" class="btn btn--danger" data-remove>Remove saved key</button>' : ''}
+        <button type="button" class="btn btn--primary" data-save>Save ${esc(p.label)}</button>
+      </div>
+    </div>`;
+  };
+
+  const options = [['claude', 'Claude'], ['openai', 'OpenAI'], ['none', 'None — no AI']];
+  const current = st.provider || st.active?.name || 'none';
+  el.innerHTML = `
+    <div class="card">
+      <h2>AI provider</h2>
+      <p class="muted small">Used to tailor résumés and cover letters, answer open-ended application questions, and tidy uploaded PDFs. Everything else (scanning, matching, filling forms from your profile) works without one.</p>
+      <div class="provider-pick" role="radiogroup">
+        ${options.map(([k, l]) => `<label class="check"><input type="radio" name="provider" value="${k}" ${current === k ? 'checked' : ''} ${k !== 'none' && !st[k].configured ? 'disabled' : ''}> ${l}${k !== 'none' && !st[k].configured ? ' <span class="muted small">(add a key below first)</span>' : ''}</label>`).join('')}
+      </div>
+      <p class="small" id="activeLine">${st.active ? `Active: <b>${esc(st.active.label)}</b> · <span class="mono">${esc(st.active.model)}</span>` : '<span class="muted">No AI provider active.</span>'}</p>
+    </div>
+    ${card('claude')}
+    ${card('openai')}
+    <p class="muted small">Keys are stored on this computer in <span class="mono">config/integrations.json</span>, which git ignores. They are never shown again in the browser, only the first and last few characters. Environment variables (<span class="mono">ANTHROPIC_API_KEY</span>, <span class="mono">OPENAI_API_KEY</span>) also work; a key saved here takes priority.</p>`;
+
+  const refresh = async (msg) => { if (msg) notify(msg); onSaved('integrations'); renderIntegrations(el); };
+
+  el.querySelectorAll('input[name=provider]').forEach(r => r.onchange = async () => {
+    try { await send('PUT', '/api/integrations', { provider: r.value }); refresh(r.value === 'none' ? 'AI turned off.' : `${st[r.value].label} is now the active provider.`); }
+    catch (e) { notify(e.message, true); renderIntegrations(el); }
+  });
+
+  el.querySelectorAll('.integ').forEach(box => {
+    const name = box.dataset.name, keyIn = $(`#key-${name}`, box), modelIn = $(`#model-${name}`, box), out = $('[data-result]', box);
+    $('[data-show]', box).onclick = () => { keyIn.type = keyIn.type === 'password' ? 'text' : 'password'; };
+    $('[data-test]', box).onclick = async e => {
+      e.target.disabled = true; out.className = 'small muted'; out.innerHTML = '<span class="spin"></span> Checking…';
+      try {
+        const r = await send('POST', '/api/integrations/test', { provider: name, apiKey: keyIn.value });
+        models[name] = r.models;
+        $(`#models-${name}`, box).innerHTML = r.models.map(m => `<option value="${esc(m)}">`).join('');
+        if (!modelIn.value && r.models.length) modelIn.value = r.models[0];
+        const known = !modelIn.value || r.models.includes(modelIn.value);
+        out.className = known ? 'small ok' : 'small warn';
+        out.textContent = `✓ Key works · ${r.models.length} models available${known ? '' : ` · "${modelIn.value}" is not one of them`}`;
+      } catch (err) { out.className = 'small bad'; out.textContent = '✕ ' + err.message; }
+      finally { e.target.disabled = false; }
+    };
+    $('[data-save]', box).onclick = async () => {
+      const body = { [name]: { model: modelIn.value.trim(), ...(keyIn.value.trim() ? { apiKey: keyIn.value.trim() } : {}) } };
+      // First provider set up becomes the active one automatically.
+      if (!st.active && (keyIn.value.trim() || st[name].configured) && modelIn.value.trim()) body.provider = name;
+      if (name === 'openai' && !modelIn.value.trim()) return notify('Choose a model first — press Test connection to list them.', true);
+      try { await send('PUT', '/api/integrations', body); refresh(`${st[name].label} settings saved.`); }
+      catch (e) { notify(e.message, true); }
+    };
+    const rm = $('[data-remove]', box);
+    if (rm) rm.onclick = async () => {
+      if (!confirm(`Remove the saved ${st[name].label} key from this computer?`)) return;
+      try {
+        await send('PUT', '/api/integrations', { [name]: { removeKey: true }, ...(st.provider === name ? { provider: 'none' } : {}) });
+        refresh(`${st[name].label} key removed.`);
+      } catch (e) { notify(e.message, true); }
+    };
+  });
 }

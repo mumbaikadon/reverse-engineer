@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { scanAll } from './sources/index.js';
 import { score } from './match.js';
 import { loadProfile, loadResume, loadCompanies, paths } from './profile.js';
-import { hasCredentials, MODEL } from './llm.js';
+import { providerInfo } from './llm.js';
 
 export function rowToJob(r) {
   return { id: r.id, ats: r.ats, company: r.company, title: r.title, location: r.location, remote: !!r.remote, description: r.description || '', postedAt: r.posted_at, externalId: r.external_id, url: r.url, applyUrl: r.apply_url };
@@ -61,12 +61,13 @@ export function rescore(db, { log = () => {} } = {}) {
 }
 
 export async function tailorJob(db, id, { log = () => {} } = {}) {
-  if (!hasCredentials()) throw new Error('Set ANTHROPIC_API_KEY to tailor résumés with Claude.');
+  const ai = providerInfo();
+  if (!ai) throw new Error('No AI provider is set up. Add a Claude or OpenAI key in Settings → Integrations.');
   const { tailor } = await import('./tailor.js');
   const { renderPdf } = await import('./render.js');
   const profile = loadProfile(), resume = loadResume();
   const job = rowToJob(db.job(id));
-  log(`Tailoring ${job.title} @ ${job.company} with ${MODEL}…`);
+  log(`Tailoring ${job.title} @ ${job.company} with ${ai.label} (${ai.model})…`);
   const r = await tailor({ job, profile, resume });
   await renderPdf(readFileSync(join(r.dir, 'resume.md'), 'utf8'), join(r.dir, 'resume.pdf'));
   await renderPdf(readFileSync(join(r.dir, 'cover_letter.txt'), 'utf8').split('\n').join('\n\n'), join(r.dir, 'cover_letter.pdf'));
