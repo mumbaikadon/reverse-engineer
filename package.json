@@ -9,10 +9,10 @@
   "scripts": {
     "start": "node src/cli.js",
     "dashboard": "node src/cli.js serve",
-    "test": "node --no-warnings --test test/*.test.js"
+    "test": "node --no-warnings --experimental-sqlite --test test/*.test.js"
   },
   "engines": {
-    "node": ">=22.13"
+    "node": ">=22.5"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.70.0",

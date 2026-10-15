@@ -3,12 +3,13 @@ import assert from 'node:assert/strict';
 import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { fillApplication } from '../src/apply/filler.js';
 import { answerQuestions } from '../src/answers.js';
 import { renderPdf } from '../src/render.js';
 
 const profile = { name: 'Jordan Reyes', email: 'j@x.io', phone: '+1 555', links: { linkedin: 'https://linkedin.com/in/x' }, workAuthorization: { authorized: true, needsSponsorship: false } };
-const job = { id: 'fixture', apply_url: 'file://' + resolve('test/fixtures/form.html') };
+const job = { id: 'fixture', apply_url: pathToFileURL(resolve('test/fixtures/form.html')).href };
 
 test('fills the fixture form, stops on missing required answer, submits when complete', { timeout: 120_000 }, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'applio-'));

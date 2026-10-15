@@ -4,7 +4,7 @@
 // back to the human ("needs_input") — never bypassed.
 import { chromium } from 'playwright';
 import { mkdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { launchOptions } from '../render.js';
 
 /** Runs in the page: index every fillable control and give it a stable data-applio-id. */
@@ -183,7 +183,7 @@ export async function fillApplication({ job, answer, files, submit = false, head
       }
       const empty = value === '' || value == null || String(source).startsWith('error');
       if (f.required && empty) missing.push(f.label || f.name || f.id);
-      receipt.fields.push({ label: f.label, type: f.type, required: f.required, value: f.type === 'file' ? value?.split('/').pop() : value, source });
+      receipt.fields.push({ label: f.label, type: f.type, required: f.required, value: f.type === 'file' ? (value ? basename(value) : value) : value, source });
     }
     await page.screenshot({ path: join(outDir, 'filled.png'), fullPage: true });
 

@@ -12,7 +12,7 @@ A self-hosted job application agent. It does the four things auto-apply products
 
 ## Run it on your computer
 
-You need **Node.js 22.13 or newer** (`node -v` to check; install from [nodejs.org](https://nodejs.org) if needed) and **git**.
+You need **Node.js 22.5 or newer** (`node -v` to check; install the current LTS from [nodejs.org](https://nodejs.org) if needed) and **git**. On 22.5–22.12 applio turns on Node's `--experimental-sqlite` flag for you.
 
 ```bash
 # 1. Get the code

@@ -6,9 +6,19 @@ import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
-// Node's fetch ignores HTTPS_PROXY unless NODE_USE_ENV_PROXY is set; re-exec once with it.
-if ((process.env.HTTPS_PROXY || process.env.https_proxy) && !process.env.NODE_USE_ENV_PROXY) {
-  const r = spawnSync(process.execPath, ['--no-warnings', ...process.argv.slice(1)], { stdio: 'inherit', env: { ...process.env, NODE_USE_ENV_PROXY: '1' } });
+// Re-exec once with the runtime flags we need:
+//  - Node 22.5–22.12 only exposes node:sqlite behind --experimental-sqlite (22.13+ accepts it as a no-op).
+//  - Node's fetch ignores HTTPS_PROXY unless NODE_USE_ENV_PROXY is set.
+const [major, minor] = process.versions.node.split('.').map(Number);
+const needsSqliteFlag = (major < 22 || (major === 22 && minor < 13)) && !process.execArgv.includes('--experimental-sqlite');
+const needsProxyEnv = !!(process.env.HTTPS_PROXY || process.env.https_proxy) && !process.env.NODE_USE_ENV_PROXY;
+if (major < 22 || (major === 22 && minor < 5)) {
+  console.error(`applio needs Node.js 22.5 or newer (you have ${process.version}). Install the current LTS from https://nodejs.org`);
+  process.exit(1);
+}
+if (needsSqliteFlag || needsProxyEnv) {
+  const flags = ['--no-warnings', ...(needsSqliteFlag ? ['--experimental-sqlite'] : [])];
+  const r = spawnSync(process.execPath, [...flags, ...process.argv.slice(1)], { stdio: 'inherit', env: { ...process.env, ...(needsProxyEnv ? { NODE_USE_ENV_PROXY: '1' } : {}) } });
   process.exit(r.status ?? 1);
 }
 
