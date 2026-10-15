@@ -1,5 +1,6 @@
 // applio dashboard — vanilla JS over the local JSON API.
 import { initSettings, showSettings } from './settings.js';
+import { initOnboarding, showOnboarding } from './onboarding.js';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const api = async (path, opts = {}) => {
@@ -78,7 +79,7 @@ async function loadSummary() {
 
   const missing = Object.entries(s.setup).filter(([, ok]) => !ok).map(([k]) => k === 'resume' ? 'résumé' : k);
   $('#setupBanner').hidden = !missing.length;
-  $('#setupBanner').innerHTML = missing.length ? `<b>Finish setting up:</b> add your ${missing.join(', ')}. <a class="btn btn--primary" href="#/settings/${s.setup.profile ? (s.setup.resume ? 'companies' : 'resume') : 'profile'}">Open settings</a>` : '';
+  $('#setupBanner').innerHTML = missing.length ? `<b>Finish setting up:</b> add your ${missing.join(', ')}. <a class="btn btn--primary" href="#/welcome">Continue setup</a>` : '';
   $('#scanBtn').disabled = !s.setup.companies || !s.setup.profile;
   $('#scanBtn').title = $('#scanBtn').disabled ? 'Add your profile and companies in Settings first' : 'Pull new postings from every company in your watchlist';
 
@@ -237,14 +238,30 @@ $('#scanBtn').onclick = async () => { try { track(await post('/api/scan')); } ca
 $('#tailorTopBtn').onclick = async () => { try { const t = await post('/api/tailor-top', { n: 5 }); t.length ? track(t) : toast('No matched jobs waiting.'); } catch (e) { toast(e.message, true); } };
 
 // ---- routing: #/ (jobs) and #/settings/<tab> ------------------------------
-function route() {
+async function route() {
+  const w = location.hash.match(/^#\/welcome(?:\/(\w+))?/);
   const m = location.hash.match(/^#\/settings(?:\/(\w+))?/);
-  $('#jobsView').hidden = !!m;
+  // Until résumé, profile and companies exist, everything except Settings leads to the setup wizard.
+  if (!w && !m) {
+    if (!state.summary) await loadSummary().catch(() => {});
+    const s = state.summary?.setup;
+    if (s && !(s.resume && s.profile && s.companies)) { location.replace('#/welcome'); return; }
+  }
+  document.body.classList.toggle('onboarding', !!w);
+  $('#welcome').hidden = !w;
+  $('#jobsView').hidden = !!(m || w);
   $('#settings').hidden = !m;
   $('#settingsBtn').classList.toggle('is-active', !!m);
-  if (m) { closeDrawer(); showSettings(m[1] || 'profile').catch(e => toast(e.message, true)); scrollTo(0, 0); }
+  closeDrawer(); scrollTo(0, 0);
+  if (w) showOnboarding(w[1]).catch(e => toast(e.message, true));
+  else if (m) showSettings(m[1] || 'profile').catch(e => toast(e.message, true));
   else refreshAll();
 }
+initOnboarding({
+  toast,
+  onChange: () => loadSummary().catch(() => {}),
+  startScan: async () => { track(await post('/api/scan')); },
+});
 initSettings({
   toast,
   onSave: async kind => {

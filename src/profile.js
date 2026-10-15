@@ -1,50 +1,30 @@
-// Reading, validating and saving the user's three config files.
-// Paths can be redirected with APPLIO_CONFIG_DIR / APPLIO_RESUME (used by tests).
-import { readFileSync, existsSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+// The user's résumé, profile and company watchlist: validation, storage (in SQLite via store.js),
+// and a first draft of the profile read straight from the résumé.
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { getJSON, setJSON, getBlob, setBlob, has } from './store.js';
 
-const ROOT = fileURLToPath(new URL('..', import.meta.url));
-export const paths = () => {
-  const dir = process.env.APPLIO_CONFIG_DIR || 'config';
-  return {
-    profile: join(dir, 'profile.json'),
-    companies: join(dir, 'companies.json'),
-    resume: process.env.APPLIO_RESUME || join('resume', 'resume.md'),
-    get originalPdf() { return join(dirname(this.resume), 'resume.original.pdf'); },
-  };
-};
-export const examples = {
-  profile: join(ROOT, 'config', 'profile.example.json'),
-  companies: join(ROOT, 'config', 'companies.example.json'),
-  resume: join(ROOT, 'resume', 'resume.example.md'),
-};
+const SUGGESTED = fileURLToPath(new URL('./suggested-companies.json', import.meta.url));
+export const suggestedCompanies = () => JSON.parse(readFileSync(SUGGESTED, 'utf8'));
 
-export function loadProfile(path = paths().profile) {
-  if (!existsSync(path)) throw new Error(`${path} not found — open Settings in the dashboard or run "applio init"`);
-  return JSON.parse(readFileSync(path, 'utf8'));
-}
-export function loadResume(path = paths().resume) {
-  if (!existsSync(path)) throw new Error(`${path} not found — add your résumé in Settings or run "applio init"`);
-  return readFileSync(path, 'utf8');
-}
-export function loadCompanies(path = paths().companies) {
-  if (!existsSync(path)) throw new Error(`${path} not found — add companies in Settings or run "applio init"`);
-  return JSON.parse(readFileSync(path, 'utf8'));
-}
+const SETUP = 'Finish setup in the dashboard first (npm run dashboard)';
+export function loadProfile() { const p = getJSON('profile'); if (!p) throw new Error(`No profile yet. ${SETUP}.`); return p; }
+export function loadResume() { const r = getJSON('resume'); if (!r) throw new Error(`No résumé yet. ${SETUP}.`); return r; }
+export function loadCompanies() { const c = getJSON('companies'); if (!c?.length) throw new Error(`No companies yet. ${SETUP}.`); return c; }
 
-/** Current config plus whether each file exists; missing files come back as the examples. */
+export const setupState = () => ({ resume: has('resume'), profile: has('profile'), companies: (getJSON('companies') || []).length > 0 });
+
+/** Everything the settings and onboarding pages need. Missing pieces come back empty, never as examples. */
 export function readConfig() {
-  const p = paths();
-  const read = (k, parse) => existsSync(p[k]) ? { value: parse(readFileSync(p[k], 'utf8')), exists: true } : { value: parse(readFileSync(examples[k], 'utf8')), exists: false };
-  const profile = read('profile', JSON.parse), companies = read('companies', JSON.parse), resume = read('resume', s => s);
-  return { profile: profile.value, companies: companies.value, resume: resume.value, exists: { profile: profile.exists, companies: companies.exists, resume: resume.exists }, originalPdf: existsSync(p.originalPdf), paths: { ...p, originalPdf: p.originalPdf } };
-}
-
-function writeAtomic(path, text) {
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path + '.tmp', text);
-  renameSync(path + '.tmp', path);
+  const resume = getJSON('resume') || '';
+  return {
+    profile: getJSON('profile') || draftProfile(resume),
+    companies: getJSON('companies') || [],
+    resume,
+    exists: setupState(),
+    originalPdf: has('resume_pdf'),
+  };
 }
 
 const isStrList = v => Array.isArray(v) && v.every(x => typeof x === 'string');
@@ -52,8 +32,8 @@ const bad = msg => Object.assign(new Error(msg), { status: 400 });
 
 export function validateProfile(p) {
   if (!p || typeof p !== 'object' || Array.isArray(p)) throw bad('profile must be an object');
-  for (const k of ['name', 'email']) if (typeof p[k] !== 'string' || !p[k].trim()) throw bad(`profile.${k} is required`);
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.email)) throw bad('profile.email does not look like an email address');
+  for (const k of ['name', 'email']) if (typeof p[k] !== 'string' || !p[k].trim()) throw bad(`${k === 'name' ? 'Your name' : 'Your email'} is required`);
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.email)) throw bad('That email address does not look right');
   const pr = p.preferences;
   if (!pr || typeof pr !== 'object') throw bad('profile.preferences is required');
   for (const k of ['titles', 'titleKeywords', 'excludeTitleKeywords', 'excludeCompanies', 'skills', 'locations', 'seniority']) {
@@ -84,21 +64,79 @@ export function validateCompanies(list) {
   });
 }
 
-export function saveOriginalPdf(buffer) {
-  const path = paths().originalPdf;
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path + '.tmp', buffer);
-  renameSync(path + '.tmp', path);
+export const saveProfile = p => setJSON('profile', validateProfile(p));
+export const saveCompanies = l => setJSON('companies', validateCompanies(l));
+export function saveResume(md) {
+  if (typeof md !== 'string' || !md.trim()) throw bad('Your résumé is empty');
+  if (md.length > 200_000) throw bad('Your résumé is too long');
+  return setJSON('resume', md.replace(/\r\n/g, '\n'));
+}
+
+export const saveOriginalPdf = buf => setBlob('resume_pdf', buf);
+export const getOriginalPdf = () => getBlob('resume_pdf');
+/** Playwright uploads from disk, so materialise the stored PDF under out/ when needed. */
+export function originalPdfPath() {
+  const buf = getOriginalPdf();
+  if (!buf) return null;
+  const dir = join('out', '.uploads');
+  mkdirSync(dir, { recursive: true });
+  const name = (getJSON('profile')?.name || 'resume').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '') || 'resume';
+  const path = join(dir, `${name}_Resume.pdf`);
+  writeFileSync(path, buf);
   return path;
 }
 
-export const saveProfile = p => (writeAtomic(paths().profile, JSON.stringify(validateProfile(p), null, 2) + '\n'), p);
-export const saveCompanies = l => (writeAtomic(paths().companies, JSON.stringify(validateCompanies(l), null, 2) + '\n'), l);
-export function saveResume(md) {
-  if (typeof md !== 'string' || !md.trim()) throw bad('résumé is empty');
-  if (md.length > 200_000) throw bad('résumé is too long');
-  writeAtomic(paths().resume, md.replace(/\r\n/g, '\n'));
-  return md;
+// ---- first draft of the profile from the résumé ------------------------
+const SENIOR_WORDS = /\b(senior|sr\.?|junior|jr\.?|lead|principal|staff|head of|associate|intern)\b|\b(i{1,3}|iv|[1-5])$/gi;
+
+export function draftProfile(md = '') {
+  const lines = md.split('\n');
+  const name = (lines.find(l => /^#\s/.test(l)) || '').replace(/^#\s+/, '').trim();
+  const nameIdx = lines.findIndex(l => /^#\s/.test(l));
+  const contact = nameIdx >= 0 ? lines.slice(nameIdx + 1, nameIdx + 4).filter(l => l.trim() && !/^#/.test(l)).join(' | ') : '';
+  const text = md;
+  const email = text.match(/[\w.+-]+@[\w-]+\.[\w.-]+/)?.[0] || '';
+  const phone = contact.match(/\+?\(?\d[\d\s().-]{7,}\d/)?.[0]?.trim() || '';
+  const linkedin = text.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w-]+/i)?.[0];
+  const github = text.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[\w-]+/i)?.[0];
+  const site = contact.split(/[|·•,]\s*|\s{2,}/).map(s => s.trim()).find(s => /^(https?:\/\/)?[\w-]+(\.[\w-]+)+(\/\S*)?$/i.test(s) && !/linkedin|github|@/.test(s));
+  const location = contact.split(/\s*[|·•]\s*/).map(s => s.trim()).find(s => /^[A-Za-zÀ-ÿ .'-]+,\s*[A-Za-zÀ-ÿ .'-]{2,}(,\s*[A-Za-zÀ-ÿ .'-]+)?$/.test(s) && !/@/.test(s)) || '';
+  const url = u => u && (/^https?:\/\//.test(u) ? u : `https://${u}`);
+
+  // Roles: "### Title — Company (2021 – present)" or "### Title, Company (…)"
+  const roles = lines.filter(l => /^###\s/.test(l)).map(l => {
+    const h = l.replace(/^###\s+/, '');
+    const dates = h.match(/\(([^)]*\d{4}[^)]*)\)\s*$/)?.[1] || '';
+    const body = h.replace(/\([^)]*\)\s*$/, '').trim();
+    const [title, company] = body.split(/\s+[—–-]\s+|\s+at\s+|,\s+/);
+    return { title: (title || '').trim(), company: (company || '').trim(), years: (dates.match(/(19|20)\d{2}/g) || []).map(Number) };
+  });
+  const allYears = roles.flatMap(r => r.years);
+  const yearsExperience = allYears.length ? Math.max(0, new Date().getFullYear() - Math.min(...allYears)) : undefined;
+
+  const skillsLine = md.match(/^##\s*Skills[^\n]*\n([\s\S]*?)(?=\n##\s|$)/im)?.[1] || '';
+  const skills = [...new Set(skillsLine.split(/[,\n•|]/).map(s => s.replace(/^[-*]\s*/, '').trim().toLowerCase()).filter(s => s && s.length <= 30))].slice(0, 20);
+  const titles = [...new Set(roles.map(r => r.title.replace(SENIOR_WORDS, '').replace(/\s{2,}/g, ' ').replace(/[,\s]+$/, '').trim().toLowerCase()).filter(Boolean))].slice(0, 4);
+  const keywords = [...new Set(titles.flatMap(t => t.split(/\s+/)).filter(w => w.length > 2 && !/^(and|the|for|of)$/.test(w)))].slice(0, 6);
+  const y = yearsExperience ?? 3;
+  const seniority = y < 2 ? ['junior', 'mid'] : y < 5 ? ['mid', 'senior'] : y < 10 ? ['mid', 'senior'] : ['senior', 'staff'];
+  const [first, ...rest] = name.split(/\s+/);
+  const city = location.split(',')[0]?.trim().toLowerCase();
+
+  const clean = o => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined && v !== ''));
+  return {
+    ...clean({ name, firstName: first, lastName: rest.join(' '), email, phone, location, currentCompany: roles[0]?.company, currentTitle: roles[0]?.title, yearsExperience }),
+    links: clean({ linkedin: url(linkedin), github: url(github), website: url(site) }),
+    workAuthorization: { authorized: true, needsSponsorship: false },
+    willingToRelocate: false,
+    eeo: {},
+    answers: [],
+    preferences: {
+      titles, titleKeywords: keywords, excludeTitleKeywords: ['intern'], excludeCompanies: [],
+      skills, locations: city ? [city] : [], remoteOk: true, strictLocation: false, seniority,
+      needsSponsorship: false, minScore: 60, dailyTailorLimit: 15,
+    },
+  };
 }
 
 /** Candidate context shared (and cached) across every AI call. */

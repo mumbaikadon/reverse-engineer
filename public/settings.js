@@ -65,10 +65,10 @@ export async function showSettings(tab = 'profile') {
   const root = $('#settings');
   root.innerHTML = `
     <div class="settings__head">
-      <div><h1>Settings</h1><p class="muted">Saved to <span class="mono">${esc(cfg.paths.profile)}</span>, <span class="mono">${esc(cfg.paths.resume)}</span> and <span class="mono">${esc(cfg.paths.companies)}</span>.</p></div>
+      <div><h1>Settings</h1><p class="muted">Changes are saved on this computer only, in applio's local database.</p></div>
       <a class="btn" href="#/">← Back to jobs</a>
     </div>
-    ${!Object.values(cfg.exists).every(Boolean) ? `<div class="setup-note">First-time setup: the forms below start from an example. Replace it with your details and press <b>Save</b> on each tab: ${['profile', 'resume', 'companies'].map(k => `<span class="${cfg.exists[k] ? 'ok' : 'bad'}">${cfg.exists[k] ? '✓' : '○'} ${k === 'resume' ? 'résumé' : k}</span>`).join(' · ')}</div>` : ''}
+    ${!Object.values(cfg.exists).every(Boolean) ? `<div class="setup-note">Setup isn't finished yet. <a class="btn btn--primary" href="#/welcome">Continue setup</a></div>` : ''}
     <div class="seg settings__tabs" role="tablist">
       ${[['profile', 'Profile'], ['resume', 'Résumé'], ['companies', 'Companies'], ['integrations', 'Integrations']].map(([k, l]) => `<a role="tab" href="#/settings/${k}" class="${tab === k ? 'is-active' : ''}">${l}${dirty[k] ? ' •' : ''}</a>`).join('')}
     </div>
@@ -437,7 +437,7 @@ async function renderIntegrations(el) {
     </div>
     ${card('claude')}
     ${card('openai')}
-    <p class="muted small">Keys are stored on this computer in <span class="mono">config/integrations.json</span>, which git ignores. They are never shown again in the browser, only the first and last few characters. Environment variables (<span class="mono">ANTHROPIC_API_KEY</span>, <span class="mono">OPENAI_API_KEY</span>) also work; a key saved here takes priority.</p>`;
+    <p class="muted small">Keys are stored only on this computer, in applio's local database. They are never shown again in the browser, only the first and last few characters. Environment variables (<span class="mono">ANTHROPIC_API_KEY</span>, <span class="mono">OPENAI_API_KEY</span>) also work; a key saved here takes priority.</p>`;
 
   const refresh = async (msg) => { if (msg) notify(msg); onSaved('integrations'); renderIntegrations(el); };
 

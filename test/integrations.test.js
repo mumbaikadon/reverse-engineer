@@ -1,13 +1,13 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 // Scratch config dir; no real keys from the environment; both SDKs pointed at a local fake API.
 const dir = mkdtempSync(join(tmpdir(), 'applio-int-'));
-process.env.APPLIO_CONFIG_DIR = dir;
+process.env.APPLIO_DB = join(dir, 'test.db');
 for (const v of ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN', 'OPENAI_API_KEY', 'APPLIO_MODEL', 'APPLIO_OPENAI_MODEL']) delete process.env[v];
 
 const seen = [];
@@ -59,7 +59,8 @@ test('saving a Claude key activates Claude and never exposes the key', async () 
   assert.equal(pub.active.name, 'claude');
   assert.equal(pub.claude.keyHint, 'sk-ant-…cdef');
   assert.ok(!JSON.stringify(I.publicIntegrations()).includes(key), 'full key must not appear in public settings');
-  assert.equal(JSON.parse(readFileSync(join(dir, 'integrations.json'), 'utf8')).claude.apiKey, key);
+  const { getJSON } = await import('../src/store.js');
+  assert.equal(getJSON('integrations').claude.apiKey, key, 'key is stored in the local database');
 
   const r = await call();
   assert.equal(r.data.answer, 'from claude');

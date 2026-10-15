@@ -228,3 +228,35 @@ label.btn.is-busy { opacity: .6; pointer-events: none; }
 .provider-pick { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 8px 0; }
 a.pill { text-decoration: none; }
 .warn { color: #b07800; }
+
+/* ---- setup wizard ------------------------------------------------------ */
+body.onboarding .top__actions > :not(#themeBtn), body.onboarding .top__meta { visibility: hidden; }
+.welcome { max-width: 860px; }
+.wz { display: grid; gap: 18px; }
+.wz__intro h1 { font-size: 28px; font-weight: 600; letter-spacing: -.02em; margin: 8px 0 4px; }
+.wz__intro p { margin: 0; }
+.wz__steps { list-style: none; padding: 0; margin: 0; display: flex; gap: 6px; flex-wrap: wrap; }
+.wz__steps li a, .wz__steps li span { display: flex; align-items: center; gap: 8px; padding: 6px 12px 6px 6px; border-radius: 99px; font-size: 13px; color: var(--ink-3); text-decoration: none; background: var(--surface-2); }
+.wz__steps b { display: grid; place-items: center; width: 22px; height: 22px; border-radius: 50%; background: var(--surface); font-size: 12px; }
+.wz__steps li.is-current a { background: var(--ink); color: var(--bg); } .wz__steps li.is-current b { background: var(--bg); color: var(--ink); }
+.wz__steps li.is-done a { color: var(--ink); } .wz__steps li.is-done b { background: var(--good); color: #fff; }
+.wz__body { padding: 24px; display: grid; gap: 14px; }
+.wz__body h2 { font-size: 19px; } .wz__body > p { margin: 0; }
+.wz__h3 { font-size: 15px; font-weight: 600; margin: 18px 0 10px; }
+.wz__nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 14px; border-top: 1px solid var(--border); margin-top: 6px; }
+.wz__summary { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; font-size: 14.5px; }
+.drop { display: grid; justify-items: center; gap: 4px; padding: 36px 16px; border: 2px dashed var(--border); border-radius: 12px; cursor: pointer; text-align: center; transition: border-color .15s, background .15s; }
+.drop:hover, .drop.is-over { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, var(--surface)); }
+.drop.is-busy { opacity: .6; pointer-events: none; }
+.drop__icon { font-size: 28px; color: var(--accent); }
+.linkbtn { border: 0; background: none; color: var(--accent); cursor: pointer; font: inherit; padding: 0; text-decoration: underline; }
+.wz__body details summary { cursor: pointer; margin-bottom: 8px; }
+.wz__body .detect { grid-template-columns: 1fr auto; margin: 0; }
+.picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 8px; }
+.pick { display: grid; grid-template-columns: auto 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; cursor: pointer; background: var(--surface); }
+.pick input { grid-row: 1 / 3; width: 16px; height: 16px; accent-color: var(--accent); }
+.pick.is-on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 7%, var(--surface)); }
+.wz__body select { font: inherit; font-size: 13.5px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); }
+.wz__body input:not([type=checkbox]):not([type=radio]) { font: inherit; font-size: 13.5px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); width: 100%; }
+.wz__body .tags input { width: auto; }
+.btn--lg { padding: 9px 18px; font-size: 14px; }

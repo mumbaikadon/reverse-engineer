@@ -9,7 +9,8 @@ import { open, STATUSES } from './db.js';
 import * as actions from './actions.js';
 import { providerInfo, testProvider } from './llm.js';
 import { publicIntegrations, saveIntegrations, PROVIDERS } from './integrations.js';
-import { loadCompanies, loadProfile, readConfig, saveProfile, saveResume, saveCompanies, saveOriginalPdf, paths } from './profile.js';
+import { loadCompanies, loadProfile, readConfig, saveProfile, saveResume, saveCompanies, saveOriginalPdf, getOriginalPdf, draftProfile, suggestedCompanies, setupState } from './profile.js';
+import { useDb, migrateLegacyFiles } from './store.js';
 import { detectBoards } from './detect.js';
 
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
@@ -89,8 +90,10 @@ function jobDetail(db, id) {
 }
 
 // ---- server ----------------------------------------------------------------
-export function serve({ port = 4317, host = '127.0.0.1', dbPath = 'data/applio.db' } = {}) {
+export function serve({ port = 4317, host = '127.0.0.1', dbPath = 'data/applio.db', migrate = true } = {}) {
   const db = open(dbPath);
+  useDb(dbPath, db);
+  if (migrate) migrateLegacyFiles({ log: console.log });
 
   const server = createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
@@ -100,7 +103,7 @@ export function serve({ port = 4317, host = '127.0.0.1', dbPath = 'data/applio.d
       if (req.method !== 'GET' && req.method !== 'HEAD' && req.headers['x-applio'] !== '1') return send(res, 403, { error: 'missing X-Applio header' });
 
       if (req.method === 'GET' && (path === '/' || path === '/index.html')) return serveFile(res, join(PUBLIC, 'index.html'));
-      if (req.method === 'GET' && /^\/(app\.js|app\.css|settings\.js)$/.test(path)) return serveFile(res, join(PUBLIC, path.slice(1)));
+      if (req.method === 'GET' && /^\/(app\.js|app\.css|settings\.js|onboarding\.js)$/.test(path)) return serveFile(res, join(PUBLIC, path.slice(1)));
       if (req.method === 'GET' && path.startsWith('/files/')) {
         const p = join(OUT, path.slice('/files/'.length));
         return inside(OUT, p) ? serveFile(res, p) : send(res, 403, 'forbidden');
@@ -109,9 +112,8 @@ export function serve({ port = 4317, host = '127.0.0.1', dbPath = 'data/applio.d
       if (path === '/api/summary' && req.method === 'GET') {
         const counts = Object.fromEntries(db.counts().map(r => [r.status, r.n]));
         let profile = null, boards = 0;
-        try { const p = loadProfile(); profile = { name: p.name, minScore: p.preferences?.minScore ?? 60 }; boards = loadCompanies().length; } catch { /* not initialised yet */ }
-        const { exists } = readConfig();
-        return send(res, 200, { setup: exists, counts, statuses: STATUSES, open: db.openCount(), lastScan: JSON.parse(db.getMeta('last_scan') || 'null'), companies: db.companies(), boards, profile, llm: (() => { const a = providerInfo(); return { enabled: !!a, provider: a?.name || null, label: a?.label || null, model: a?.model || null }; })() });
+        try { const p = loadProfile(); profile = { name: p.name, minScore: p.preferences?.minScore ?? 60 }; boards = loadCompanies().length; } catch { /* setup not finished */ }
+        return send(res, 200, { setup: setupState(), counts, statuses: STATUSES, open: db.openCount(), lastScan: JSON.parse(db.getMeta('last_scan') || 'null'), companies: db.companies(), boards, profile, llm: (() => { const a = providerInfo(); return { enabled: !!a, provider: a?.name || null, label: a?.label || null, model: a?.model || null }; })() });
       }
       if (path === '/api/jobs' && req.method === 'GET') {
         return send(res, 200, db.list(Object.fromEntries(url.searchParams)));
@@ -139,7 +141,14 @@ export function serve({ port = 4317, host = '127.0.0.1', dbPath = 'data/applio.d
         saveOriginalPdf(buf);
         return send(res, 200, { ...result, originalPdf: true });
       }
-      if (path === '/api/config/resume/original.pdf' && req.method === 'GET') return serveFile(res, paths().originalPdf);
+      if (path === '/api/config/resume/original.pdf' && req.method === 'GET') {
+        const buf = getOriginalPdf();
+        if (!buf) return send(res, 404, 'no PDF uploaded');
+        res.writeHead(200, { 'content-type': 'application/pdf', 'cache-control': 'no-store' });
+        return res.end(buf);
+      }
+      if (path === '/api/config/profile/draft' && req.method === 'GET') return send(res, 200, draftProfile(readConfig().resume));
+      if (path === '/api/config/suggested-companies' && req.method === 'GET') return send(res, 200, suggestedCompanies());
       if (path === '/api/config/resume/preview' && req.method === 'POST') {
         const { markdown } = await readBody(req);
         const { renderPdf } = await import('./render.js');

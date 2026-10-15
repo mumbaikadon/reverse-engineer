@@ -31,13 +31,15 @@ npm test
 npm run dashboard
 ```
 
-Open **http://localhost:4317**. A banner asks you to finish setup; click **Open settings** and fill in the three tabs:
+Open **http://localhost:4317**. The first time, a short setup walks you through everything; there are no files to edit:
 
-- **Profile:** contact details, work eligibility, the titles, skills and locations you want, and standing answers to questions that come up often. Saving re-scores your existing matches.
-- **Résumé:** **upload your PDF résumé** and applio reads the text and lays it out (name, Summary, Experience with one bullet per accomplishment, Skills). With an API key you can tick *Let Claude fix the layout*, which restructures without changing your wording. Check the result in the editor, fix anything that came out wrong, and save. Your original PDF is kept: for jobs you don't tailor you choose whether employers get **your uploaded PDF exactly as designed** or a clean PDF made from the text. Tailored jobs always get a PDF of the tailored text. You can also paste text or open a `.md`/`.txt` file. Scanned or image-only PDFs have no text to read, so paste the text for those.
-- **Companies:** paste a careers-page link or job-board link, or just type a company name, then press **Find board**. applio works out whether it's on Greenhouse, Lever, Ashby or Workday and shows how many roles are open. Click **Add**, then **Save companies**.
+1. **Upload your résumé PDF** (drag it in, or paste the text). applio reads it and shows you the text so you can fix anything it got wrong. Your original PDF is kept.
+2. **About you:** your name, email, phone, location, links, the job titles you want, your skills, locations and level, all **pre-filled from your résumé**. Check them and continue.
+3. **Companies:** tick companies from the suggestions, or type a name or paste a careers link to add any company on Greenhouse, Lever, Ashby or Workday.
+4. **AI (optional):** connect Claude or OpenAI with an API key to get tailored résumés, cover letters and written answers. You can skip this and add it later.
+5. **Find jobs now** scans those companies and opens your scored job list.
 
-Then go back and press **Scan boards**. Your settings are saved to `config/profile.json`, `resume/resume.md` and `config/companies.json`. These are git-ignored, so your details are never committed. You can still edit them by hand, or run `node src/cli.js init` to start from the examples.
+Everything is saved on your computer in applio's local database (`data/applio.db`, git-ignored). Change any of it later in **Settings** (Profile, Résumé, Companies, Integrations). If you used an older version with `config/*.json` and `resume/resume.md`, those are imported automatically the first time you start it.
 
 ### Trying it out safely
 
@@ -45,7 +47,7 @@ Nothing reaches an employer until you approve a job **and** press Submit (or run
 
 1. **Scan** with the example profile and résumé still in place, and look through the matches. Click a row to see why it matched.
 2. Click **Dry run** on any job. A headless browser opens the real application form, fills it in, takes a screenshot and stops without submitting. Afterwards the panel shows every field, the value used and where it came from, with a link to the screenshot.
-3. Change any setting (**Settings → Profile**, **Résumé** or **Companies**), save, and scan again. Scores update to match.
+3. Change any setting in **Settings** (Profile, Résumé, Companies), save, and scan again. Scores update to match.
 4. To turn on résumé tailoring and AI-written answers, open **Settings → Integrations**. Paste a **Claude** (Anthropic) or **OpenAI** API key, press **Test connection** to check it and list the models it can use, pick a model, and **Save**. Choose which provider is active at the top of the tab. The header pill changes to **AI: Claude** or **AI: OpenAI**. Keys are saved on your computer in `config/integrations.json` (git-ignored) and are never shown in full again. `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` environment variables also work. Click **Tailor** on a job, review the bullet changes and cover letter in the panel, then **Approve**, then **Dry run** again to see the tailored PDFs uploaded.
 5. Press **Submit** only on a job you want to apply to. It asks for confirmation first.
 
@@ -67,19 +69,15 @@ To start over, delete the `data/` folder (the database) and `out/` (generated PD
 
 The server listens on `127.0.0.1` only. It can submit applications in your name, so don't expose it with `--host 0.0.0.0` on a network you don't trust. Every state-changing request must carry an `X-Applio` header, which stops other websites open in your browser from triggering actions on it.
 
-## Setup details
+## Tips
 
-After `node src/cli.js init`, edit:
-
-- **`resume/resume.md`** — your résumé in Markdown. Use `## Summary`, `## Experience` (bullets starting with `- `) and `## Skills` (comma-separated) so tailoring can edit those sections.
-- **`config/profile.json`** — contact details, work authorization, and `preferences` (titles, skills, locations, seniority, `minScore`). The `answers` list holds your own standing answers to recurring questions (`{"match": "<regex>", "answer": "No"}`). Demographic questions are answered "decline" unless you fill in `eeo`.
-- **`config/companies.json`** — the boards to watch. Find a company's board in its careers-page URL:
-  - Greenhouse: `boards.greenhouse.io/<slug>` or `job-boards.greenhouse.io/<slug>` → `{"ats": "greenhouse", "slug": "<slug>"}`
-  - Lever: `jobs.lever.co/<slug>` → `{"ats": "lever", "slug": "<slug>"}`
-  - Ashby: `jobs.ashbyhq.com/<slug>` → `{"ats": "ashby", "slug": "<slug>"}`
-  - Workday: `<host>/<site>` such as `nvidia.wd5.myworkdayjobs.com/NVIDIAExternalCareerSite` → `{"ats": "workday", "host": "nvidia.wd5.myworkdayjobs.com", "tenant": "nvidia", "site": "NVIDIAExternalCareerSite"}`
-
-Set `ANTHROPIC_API_KEY` to enable tailoring and AI-written answers. Without it, scanning, matching and profile-based form filling still work; open-ended questions are left for you.
+- **Résumé layout.** Tailoring edits the bullets under `## Experience`, the `## Summary`, and the order of `## Skills`. After a PDF upload, check the text in Settings → Résumé: name as `# Name`, each job as `### Title — Company (dates)`, and each accomplishment on its own line starting with `- `.
+- **Finding a company's board.** Settings → Companies works it out from a name or link. If it can't, open one of the company's job postings and paste that link; the address shows the board:
+  - Greenhouse: `boards.greenhouse.io/<name>` or `job-boards.greenhouse.io/<name>`
+  - Lever: `jobs.lever.co/<name>`
+  - Ashby: `jobs.ashbyhq.com/<name>`
+  - Workday: `<company>.wd5.myworkdayjobs.com/<site>`
+- **Command line.** Every dashboard action also has a CLI command (below), reading the same database. Run the dashboard setup first.
 
 ## Daily use
 

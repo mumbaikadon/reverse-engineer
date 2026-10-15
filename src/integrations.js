@@ -1,20 +1,16 @@
 // AI provider settings (Claude / OpenAI): API keys, models and which one is active.
-// Stored in config/integrations.json (git-ignored). Keys are never sent back to the browser.
+// Stored in the local database (data/, git-ignored). Keys are never sent back to the browser.
 // Environment variables still work: ANTHROPIC_API_KEY / ANTHROPIC_AUTH_TOKEN and OPENAI_API_KEY.
-import { existsSync, readFileSync, writeFileSync, renameSync, mkdirSync, chmodSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { getJSON, setJSON } from './store.js';
 
 export const PROVIDERS = {
   claude: { label: 'Claude', defaultModel: 'claude-opus-5-5', env: ['ANTHROPIC_API_KEY', 'ANTHROPIC_AUTH_TOKEN'], keyPrefix: 'sk-ant-' },
   openai: { label: 'OpenAI', defaultModel: '', env: ['OPENAI_API_KEY'], keyPrefix: 'sk-' },
 };
 
-const file = () => join(process.env.APPLIO_CONFIG_DIR || 'config', 'integrations.json');
 const bad = msg => Object.assign(new Error(msg), { status: 400 });
 
-export function loadIntegrations() {
-  try { return JSON.parse(readFileSync(file(), 'utf8')); } catch { return {}; }
-}
+export function loadIntegrations() { return getJSON('integrations') || {}; }
 
 /** Key for a provider: saved key first, then environment. */
 export function keyFor(name, saved = loadIntegrations()) {
@@ -76,9 +72,6 @@ export function saveIntegrations(update) {
     }
   }
   if (saved.provider && saved.provider !== 'none' && !keyFor(saved.provider, saved).key) throw bad(`Add a ${PROVIDERS[saved.provider].label} API key before making it the active provider`);
-  mkdirSync(dirname(file()), { recursive: true });
-  writeFileSync(file() + '.tmp', JSON.stringify(saved, null, 2) + '\n', { mode: 0o600 });
-  renameSync(file() + '.tmp', file());
-  try { chmodSync(file(), 0o600); } catch { /* not supported on Windows */ }
+  setJSON('integrations', saved);
   return publicIntegrations();
 }

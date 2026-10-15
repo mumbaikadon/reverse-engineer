@@ -28,7 +28,7 @@ test('linesToMarkdown rebuilds headings, roles, bullets and wrapped lines', () =
 
 test('importResumePdf round-trips a real PDF', { timeout: 60_000 }, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'applio-pdf-'));
-  const src = readFileSync('resume/resume.example.md', 'utf8');
+  const src = readFileSync('test/fixtures/resume.md', 'utf8');
   const pdf = await renderPdf(src, join(dir, 'r.pdf'));
   const r = await importResumePdf(readFileSync(pdf));
   assert.equal(r.pages, 1);

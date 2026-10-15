@@ -1,16 +1,16 @@
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 // Point config at a scratch folder before anything reads it.
 const dir = mkdtempSync(join(tmpdir(), 'applio-cfg-'));
-process.env.APPLIO_CONFIG_DIR = join(dir, 'config');
-process.env.APPLIO_RESUME = join(dir, 'resume.md');
+process.env.APPLIO_DB = join(dir, 'settings.db');
 
 const { parseBoardUrl } = await import('../src/detect.js');
-const { validateProfile, validateCompanies, readConfig } = await import('../src/profile.js');
+const { validateProfile, validateCompanies, readConfig, draftProfile } = await import('../src/profile.js');
+const { getJSON } = await import('../src/store.js');
 const { serve } = await import('../src/server.js');
 const { open } = await import('../src/db.js');
 const { rescore } = await import('../src/actions.js');
@@ -37,15 +37,29 @@ test('validation rejects broken profiles and company lists', () => {
   assert.throws(() => validateCompanies([{ ats: 'lever', slug: 'a' }, { ats: 'lever', slug: 'A' }]), /twice/);
 });
 
-test('readConfig falls back to the examples until files are saved', () => {
+test('nothing is set up until the user saves it (no example data)', () => {
   const c = readConfig();
-  assert.deepEqual(c.exists, { profile: false, companies: false, resume: false });
-  assert.ok(c.profile.name && c.companies.length && c.resume.includes('##'));
+  assert.deepEqual(c.exists, { resume: false, profile: false, companies: false });
+  assert.deepEqual(c.companies, []);
+  assert.equal(c.resume, '');
+});
+
+test('draftProfile fills the profile from the résumé', () => {
+  const p = draftProfile(readFileSync('test/fixtures/resume.md', 'utf8'));
+  assert.equal(p.name, 'Jordan Reyes');
+  assert.equal(p.email, 'jordan@example.com');
+  assert.equal(p.location, 'Brooklyn, NY');
+  assert.equal(p.currentCompany, 'Northwind');
+  assert.equal(p.links.github, 'https://github.com/example');
+  assert.deepEqual(p.preferences.titles, ['software engineer']);
+  assert.ok(p.preferences.skills.includes('kubernetes'));
+  const q = draftProfile('# Priya Nair\nAustin, TX | priya@example.com | (555) 010-2233\n');
+  assert.equal(q.phone, '(555) 010-2233');
 });
 
 let server, base;
 before(async () => {
-  server = serve({ port: 0, dbPath: join(dir, 'test.db') });
+  server = serve({ port: 0, dbPath: process.env.APPLIO_DB, migrate: false });
   await new Promise(r => server.once('listening', r));
   base = `http://127.0.0.1:${server.address().port}`;
 });
@@ -62,20 +76,19 @@ test('settings API saves all three files and reports setup state', async () => {
   assert.equal((await put('/api/config/companies', { companies: [{ ats: 'greenhouse', slug: 'figma', name: 'Figma' }] })).status, 200);
 
   s = await (await fetch(base + '/api/summary')).json();
-  assert.deepEqual(s.setup, { profile: true, companies: true, resume: true });
-  assert.equal(JSON.parse(readFileSync(join(dir, 'config', 'profile.json'), 'utf8')).name, 'Ana Silva');
-  assert.equal(readFileSync(join(dir, 'resume.md'), 'utf8'), '# Ana\n\n## Skills\nFigma\n', 'Windows line endings are normalised');
+  assert.deepEqual(s.setup, { resume: true, profile: true, companies: true });
+  assert.equal(getJSON('profile').name, 'Ana Silva');
+  assert.equal(getJSON('resume'), '# Ana\n\n## Skills\nFigma\n', 'Windows line endings are normalised');
 });
 
 test('settings API rejects invalid input without touching the file', async () => {
-  const before = readFileSync(join(dir, 'config', 'profile.json'), 'utf8');
+  const before = JSON.stringify(getJSON('profile'));
   const r = await put('/api/config/profile', { profile: { name: '', email: 'x' } });
   assert.equal(r.status, 400);
   assert.match((await r.json()).error, /name/);
-  assert.equal(readFileSync(join(dir, 'config', 'profile.json'), 'utf8'), before);
+  assert.equal(JSON.stringify(getJSON('profile')), before);
   assert.equal((await put('/api/config/resume', { markdown: '   ' })).status, 400);
   assert.equal((await fetch(base + '/api/config/profile', { method: 'PUT', body: '{}' })).status, 403, 'needs X-Applio header');
-  assert.ok(!existsSync(join(dir, 'config', 'profile.json.tmp')));
 });
 
 test('rescore updates untouched matches and leaves reviewed jobs alone', () => {

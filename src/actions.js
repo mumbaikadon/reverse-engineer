@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { scanAll } from './sources/index.js';
 import { score } from './match.js';
-import { loadProfile, loadResume, loadCompanies, paths } from './profile.js';
+import { loadProfile, loadResume, loadCompanies, originalPdfPath } from './profile.js';
 import { providerInfo } from './llm.js';
 
 export function rowToJob(r) {
@@ -98,8 +98,8 @@ export async function applyJob(db, id, { submit = false, headed = false, base = 
   if (!base && app.tailored_path && existsSync(join(dir, 'resume.pdf'))) {
     files.resume = join(dir, 'resume.pdf');
     files.coverLetter = join(dir, 'cover_letter.pdf');
-  } else if (profile.resumePdf !== 'generated' && existsSync(paths().originalPdf)) {
-    files.resume = paths().originalPdf; // the PDF you uploaded, exactly as designed
+  } else if (profile.resumePdf !== 'generated' && originalPdfPath()) {
+    files.resume = originalPdfPath(); // the PDF you uploaded, exactly as designed
   } else {
     files.resume = await renderPdf(resume, join(dir, 'resume-base.pdf'));
   }

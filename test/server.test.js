@@ -14,7 +14,7 @@ before(async () => {
   const db = open(dbPath);
   db.saveJobs([{ id, ats: 'greenhouse', board: 'acme', externalId: '1', company: 'Acme', title: 'Backend Engineer', location: 'Remote', remote: true, url: 'https://example.com/1', applyUrl: 'https://example.com/1/apply', description: 'Go and Postgres' }]);
   db.setApp(id, { status: 'matched', score: 88, reasons: JSON.stringify(['title matches']) });
-  server = serve({ port: 0, dbPath });
+  server = serve({ port: 0, dbPath, migrate: false });
   await new Promise(r => server.once('listening', r));
   base = `http://127.0.0.1:${server.address().port}`;
 });

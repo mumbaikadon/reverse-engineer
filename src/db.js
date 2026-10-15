@@ -20,6 +20,7 @@ export function open(path = 'data/applio.db') {
       tailored_path TEXT, answers TEXT, receipt_path TEXT, note TEXT, updated_at TEXT
     );
     CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
+    CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, json TEXT, blob BLOB, updated_at TEXT);
     CREATE TABLE IF NOT EXISTS events (
       id INTEGER PRIMARY KEY AUTOINCREMENT, job_id TEXT, kind TEXT, detail TEXT, at TEXT
     );

@@ -2,7 +2,6 @@
 // applio — command-line front end for the job application pipeline.
 //   discover (scan) → score (jobs) → tailor → approve → apply → track (board)
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
@@ -26,13 +25,13 @@ const { open, STATUSES } = await import('./db.js');
 const { rank } = await import('./match.js');
 const { loadProfile } = await import('./profile.js');
 const actions = await import('./actions.js');
+const store = await import('./store.js');
 const { rowToJob } = actions;
 
 const HELP = `applio — self-hosted job application agent
 
 Usage: applio <command> [options]
 
-  init                       Create config/profile.json, config/companies.json, resume/resume.md
   scan                       Pull every board in the watchlist, store new jobs, score them
   watch [--every 30]         Run scan every N minutes and print new matches
   jobs [--min 60] [--limit 25] [--all]
@@ -71,6 +70,8 @@ const pad = (s, n) => { s = String(s ?? ''); return s.length > n ? s.slice(0, n 
 const shortId = id => id.split(':').slice(1).join(':');
 
 async function main() {
+  store.useDb(opt.db);
+  if (cmd && cmd !== 'help' && cmd !== '--help') store.migrateLegacyFiles({ log: m => console.log(c.dim(m)) });
   switch (cmd) {
     case 'init': return init();
     case 'scan': return scan();
@@ -92,11 +93,7 @@ async function main() {
 }
 
 function init() {
-  for (const [src, dst] of [['config/profile.example.json', 'config/profile.json'], ['config/companies.example.json', 'config/companies.json'], ['resume/resume.example.md', 'resume/resume.md']]) {
-    if (existsSync(dst)) console.log(c.dim(`exists  ${dst}`));
-    else { copyFileSync(src, dst); console.log(`created ${dst}`); }
-  }
-  console.log(`\nNext: edit those three files with your details, then run ${c.bold('applio scan')}.`);
+  console.log(`Setup now happens in the dashboard: run ${c.bold('npm run dashboard')} and open http://localhost:4317 —\nit walks you through uploading your résumé, your profile and the companies to watch.`);
 }
 
 async function scan({ quiet = false } = {}) {
