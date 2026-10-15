@@ -214,3 +214,11 @@ input.inline { padding: 5px 8px; }
   .answer-row { grid-template-columns: 1fr auto; } .answer-row > .muted { display: none; }
   .companies th:nth-child(3), .companies td:nth-child(3) { display: none; }
 }
+.upload { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--border); }
+.upload h2 { margin-bottom: 4px; } .upload p { margin: 0 0 8px; max-width: 640px; }
+.upload label.btn { cursor: pointer; flex: none; }
+label.btn.is-busy { opacity: .6; pointer-events: none; }
+.import-ok { padding: 10px 12px; border-radius: 8px; background: color-mix(in srgb, var(--good) 12%, var(--surface)); margin-bottom: 8px; }
+#importMsg .note { margin: 0 0 8px; }
+.pdf-choice { display: flex; flex-wrap: wrap; gap: 6px 18px; align-items: center; padding: 10px 12px; border-radius: 8px; background: var(--surface-2); margin-bottom: 12px; }
+@media (max-width: 760px) { .upload { flex-direction: column; } }

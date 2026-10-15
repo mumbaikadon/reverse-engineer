@@ -225,7 +225,22 @@ function resumeChecks(md) {
 function renderResume(el) {
   el.innerHTML = `
     <div class="card">
-      <p class="muted small">Write your résumé in Markdown. Tailoring rewrites the bullets under <b>## Experience</b>, the <b>## Summary</b>, and the order of <b>## Skills</b>, and never adds facts that aren't here. Copy and paste from Word or a PDF, then add the <span class="mono">#</span>, <span class="mono">##</span> and <span class="mono">-</span> markers.</p>
+      <div class="upload">
+        <div>
+          <h2>Upload your résumé PDF</h2>
+          <p class="muted small">applio reads the text out of it and lays it out below so tailoring can work with it. Check the result, fix anything that came out wrong, then press <b>Save résumé</b>. Scanned or image-only PDFs have no text to read; paste the text instead.</p>
+          <label class="check small"><input type="checkbox" id="tidy" ${cfg.llm ? 'checked' : 'disabled'}> Let Claude fix the layout (keeps your wording)${cfg.llm ? '' : ' — needs ANTHROPIC_API_KEY'}</label>
+        </div>
+        <label class="btn btn--primary" id="pdfLabel">Choose PDF…<input type="file" accept="application/pdf,.pdf" id="pdfFile" hidden></label>
+      </div>
+      <div id="importMsg"></div>
+      ${cfg.originalPdf ? `<div class="pdf-choice">
+        <span class="small"><b>Which file do employers get?</b> <a href="/api/config/resume/original.pdf" target="_blank" rel="noopener">your uploaded PDF</a> is kept as well.</span>
+        <label class="check small"><input type="radio" name="resumePdf" value="original" ${draft.profile.resumePdf !== 'generated' ? 'checked' : ''}> My uploaded PDF, exactly as designed</label>
+        <label class="check small"><input type="radio" name="resumePdf" value="generated" ${draft.profile.resumePdf === 'generated' ? 'checked' : ''}> A clean PDF made from the text below</label>
+        <span class="muted small">Jobs you tailor always get a PDF made from the tailored text.</span>
+      </div>` : ''}
+      <p class="muted small">Or write it in Markdown below. Tailoring rewrites the bullets under <b>## Experience</b>, the <b>## Summary</b>, and the order of <b>## Skills</b>, and never adds facts that aren't here.</p>
       <div class="resume-tools">
         <label class="btn">Open .md / .txt file<input type="file" accept=".md,.markdown,.txt,text/plain,text/markdown" id="resumeFile" hidden></label>
         <button type="button" class="btn" id="resumeExample">Insert example layout</button>
@@ -248,6 +263,29 @@ function renderResume(el) {
   update();
   ta.oninput = () => { draft.resume = ta.value; update(); markDirty('resume'); };
   $('#resumeFile', el).onchange = async e => { const f = e.target.files[0]; if (!f) return; ta.value = draft.resume = await f.text(); update(); markDirty('resume'); };
+  $('#pdfFile', el).onchange = async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    if (ta.value.trim() && dirty.resume && !confirm('Replace your unsaved edits with the text from this PDF?')) return;
+    const label = $('#pdfLabel', el), msg = $('#importMsg', el);
+    label.classList.add('is-busy'); label.firstChild.textContent = 'Reading…';
+    msg.innerHTML = `<p class="muted small"><span class="spin"></span> Reading ${esc(f.name)}${$('#tidy', el).checked ? ' and tidying the layout with Claude' : ''}…</p>`;
+    try {
+      const res = await fetch(`/api/config/resume/import${$('#tidy', el).checked ? '?tidy=1' : ''}`, { method: 'POST', headers: { 'content-type': 'application/pdf', 'x-applio': '1' }, body: f });
+      const r = await res.json();
+      if (!res.ok) throw new Error(r.error || `HTTP ${res.status}`);
+      ta.value = draft.resume = r.markdown; update(); markDirty('resume');
+      cfg.originalPdf = true;
+      msg.innerHTML = `<div class="import-ok small">✓ Read ${r.pages} page${r.pages === 1 ? '' : 's'} from ${esc(f.name)}${r.tidied ? ', layout tidied by Claude' : ''}. Review the text below, then press <b>Save résumé</b>.</div>`
+        + r.warnings.map(w => `<p class="note">${esc(w)}</p>`).join('');
+    } catch (err) { msg.innerHTML = `<p class="note">${esc(err.message)}</p>`; }
+    finally { label.classList.remove('is-busy'); label.firstChild.textContent = 'Choose PDF…'; }
+  };
+  el.querySelectorAll('input[name=resumePdf]').forEach(r => r.onchange = async () => {
+    if (!cfg.exists.profile) { notify('Save your profile first, then choose this.', true); return; }
+    try { cfg = await send('PUT', '/api/config/profile', { profile: { ...cfg.profile, resumePdf: r.value } }); draft.profile.resumePdf = r.value; notify(r.value === 'original' ? 'Employers will get your uploaded PDF.' : 'Employers will get a PDF made from the text.'); }
+    catch (e) { notify(e.message, true); }
+  });
   $('#resumeExample', el).onclick = () => {
     if (ta.value.trim() && !confirm('Replace the editor contents with the example layout?')) return;
     ta.value = draft.resume = `# Your Name\nCity, Country · you@example.com · linkedin.com/in/you · github.com/you\n\n## Summary\nOne or two sentences about what you do and what you're looking for.\n\n## Experience\n\n### Job Title — Company (2022 – present)\n- What you did, with the result and a number if you have one.\n- Another accomplishment.\n\n### Job Title — Company (2019 – 2022)\n- Accomplishment.\n\n## Education\nDegree — School (Year)\n\n## Skills\nSkill one, Skill two, Skill three\n`;

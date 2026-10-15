@@ -11,6 +11,7 @@ export const paths = () => {
     profile: join(dir, 'profile.json'),
     companies: join(dir, 'companies.json'),
     resume: process.env.APPLIO_RESUME || join('resume', 'resume.md'),
+    get originalPdf() { return join(dirname(this.resume), 'resume.original.pdf'); },
   };
 };
 export const examples = {
@@ -37,7 +38,7 @@ export function readConfig() {
   const p = paths();
   const read = (k, parse) => existsSync(p[k]) ? { value: parse(readFileSync(p[k], 'utf8')), exists: true } : { value: parse(readFileSync(examples[k], 'utf8')), exists: false };
   const profile = read('profile', JSON.parse), companies = read('companies', JSON.parse), resume = read('resume', s => s);
-  return { profile: profile.value, companies: companies.value, resume: resume.value, exists: { profile: profile.exists, companies: companies.exists, resume: resume.exists }, paths: p };
+  return { profile: profile.value, companies: companies.value, resume: resume.value, exists: { profile: profile.exists, companies: companies.exists, resume: resume.exists }, originalPdf: existsSync(p.originalPdf), paths: { ...p, originalPdf: p.originalPdf } };
 }
 
 function writeAtomic(path, text) {
@@ -58,6 +59,7 @@ export function validateProfile(p) {
   for (const k of ['titles', 'titleKeywords', 'excludeTitleKeywords', 'excludeCompanies', 'skills', 'locations', 'seniority']) {
     if (pr[k] !== undefined && !isStrList(pr[k])) throw bad(`preferences.${k} must be a list of text`);
   }
+  if (p.resumePdf !== undefined && !['original', 'generated'].includes(p.resumePdf)) throw bad('resumePdf must be "original" or "generated"');
   if (pr.minScore !== undefined && !(Number.isFinite(pr.minScore) && pr.minScore >= 0 && pr.minScore <= 100)) throw bad('preferences.minScore must be 0–100');
   for (const a of p.answers || []) {
     if (typeof a?.match !== 'string' || typeof a?.answer !== 'string') throw bad('each standing answer needs "match" and "answer" text');
@@ -80,6 +82,14 @@ export function validateCompanies(list) {
     seen.add(key);
     return c;
   });
+}
+
+export function saveOriginalPdf(buffer) {
+  const path = paths().originalPdf;
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path + '.tmp', buffer);
+  renameSync(path + '.tmp', path);
+  return path;
 }
 
 export const saveProfile = p => (writeAtomic(paths().profile, JSON.stringify(validateProfile(p), null, 2) + '\n'), p);

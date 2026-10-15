@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { open, STATUSES } from './db.js';
 import * as actions from './actions.js';
 import { hasCredentials, MODEL } from './llm.js';
-import { loadCompanies, loadProfile, readConfig, saveProfile, saveResume, saveCompanies } from './profile.js';
+import { loadCompanies, loadProfile, readConfig, saveProfile, saveResume, saveCompanies, saveOriginalPdf, paths } from './profile.js';
 import { detectBoards } from './detect.js';
 
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
@@ -47,6 +47,11 @@ async function readBody(req) {
   let raw = '';
   for await (const chunk of req) { raw += chunk; if (raw.length > 1e6) throw Object.assign(new Error('body too large'), { status: 413 }); }
   return raw ? JSON.parse(raw) : {};
+}
+async function readRaw(req, max) {
+  const chunks = []; let size = 0;
+  for await (const chunk of req) { size += chunk.length; if (size > max) throw Object.assign(new Error(`file is larger than ${max / 1e6} MB`), { status: 413 }); chunks.push(chunk); }
+  return Buffer.concat(chunks);
 }
 function serveFile(res, path) {
   if (!existsSync(path) || !statSync(path).isFile()) return send(res, 404, 'not found');
@@ -111,7 +116,7 @@ export function serve({ port = 4317, host = '127.0.0.1', dbPath = 'data/applio.d
         return send(res, 200, db.list(Object.fromEntries(url.searchParams)));
       }
       // ---- settings: profile, résumé, companies --------------------------------
-      if (path === '/api/config' && req.method === 'GET') return send(res, 200, readConfig());
+      if (path === '/api/config' && req.method === 'GET') return send(res, 200, { ...readConfig(), llm: hasCredentials() });
       if (path === '/api/config/profile' && req.method === 'PUT') { saveProfile((await readBody(req)).profile); return send(res, 200, readConfig()); }
       if (path === '/api/config/resume' && req.method === 'PUT') { saveResume((await readBody(req)).markdown); return send(res, 200, readConfig()); }
       if (path === '/api/config/companies' && req.method === 'PUT') { saveCompanies((await readBody(req)).companies); return send(res, 200, readConfig()); }
@@ -119,6 +124,14 @@ export function serve({ port = 4317, host = '127.0.0.1', dbPath = 'data/applio.d
         const { input, name } = await readBody(req);
         return send(res, 200, await detectBoards(input, { name }));
       }
+      if (path === '/api/config/resume/import' && req.method === 'POST') {
+        const buf = await readRaw(req, 10e6);
+        const { importResumePdf } = await import('./resume-import.js');
+        const result = await importResumePdf(buf, { tidy: url.searchParams.get('tidy') === '1' });
+        saveOriginalPdf(buf);
+        return send(res, 200, { ...result, originalPdf: true });
+      }
+      if (path === '/api/config/resume/original.pdf' && req.method === 'GET') return serveFile(res, paths().originalPdf);
       if (path === '/api/config/resume/preview' && req.method === 'POST') {
         const { markdown } = await readBody(req);
         const { renderPdf } = await import('./render.js');

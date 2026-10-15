@@ -34,7 +34,7 @@ npm run dashboard
 Open **http://localhost:4317**. A banner asks you to finish setup; click **Open settings** and fill in the three tabs:
 
 - **Profile:** contact details, work eligibility, the titles, skills and locations you want, and standing answers to questions that come up often. Saving re-scores your existing matches.
-- **Résumé:** paste your résumé into the editor or open a `.md`/`.txt` file. A live preview and checklist show whether tailoring can find your Summary, Experience bullets and Skills. **Preview as PDF** shows the file employers receive.
+- **Résumé:** **upload your PDF résumé** and applio reads the text and lays it out (name, Summary, Experience with one bullet per accomplishment, Skills). With an API key you can tick *Let Claude fix the layout*, which restructures without changing your wording. Check the result in the editor, fix anything that came out wrong, and save. Your original PDF is kept: for jobs you don't tailor you choose whether employers get **your uploaded PDF exactly as designed** or a clean PDF made from the text. Tailored jobs always get a PDF of the tailored text. You can also paste text or open a `.md`/`.txt` file. Scanned or image-only PDFs have no text to read, so paste the text for those.
 - **Companies:** paste a careers-page link or job-board link, or just type a company name, then press **Find board**. applio works out whether it's on Greenhouse, Lever, Ashby or Workday and shows how many roles are open. Click **Add**, then **Save companies**.
 
 Then go back and press **Scan boards**. Your settings are saved to `config/profile.json`, `resume/resume.md` and `config/companies.json`. These are git-ignored, so your details are never committed. You can still edit them by hand, or run `node src/cli.js init` to start from the examples.
@@ -103,6 +103,8 @@ node src/cli.js board
 Every `apply` writes `out/<job>/apply/receipt.json` (each field, the value used, and where it came from: `profile`, `claude`, `file` or `missing`), `filled.png`, and after submitting, `after-submit.png`.
 
 ## How it works
+
+**What a scan covers.** Each scan calls the public job-board APIs for the companies in your watchlist, and only those. It doesn't search LinkedIn, Indeed or the whole web. For the 19 example companies that is about 5,400 live postings; stored jobs that are no longer listed are marked closed. Scans run when you press **Scan boards** (or `applio scan`). To scan on a timer, run `node src/cli.js watch --every 30` in a second terminal while the dashboard is open. More companies in the watchlist means more jobs.
 
 **Discovery.** The career pages for most tech companies are hosted by one of a few applicant-tracking systems, and each publishes the postings as JSON:
 
