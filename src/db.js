@@ -19,6 +19,7 @@ export function open(path = 'data/applio.db') {
       job_id TEXT PRIMARY KEY REFERENCES jobs(id), status TEXT, score INTEGER, reasons TEXT,
       tailored_path TEXT, answers TEXT, receipt_path TEXT, note TEXT, updated_at TEXT
     );
+    CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT);
     CREATE TABLE IF NOT EXISTS events (
       id INTEGER PRIMARY KEY AUTOINCREMENT, job_id TEXT, kind TEXT, detail TEXT, at TEXT
     );
@@ -86,6 +87,26 @@ function wrap(db) {
       return status ? db.prepare(sql).all(status) : db.prepare(sql).all();
     },
     counts: () => db.prepare('SELECT status, COUNT(*) n FROM applications GROUP BY status').all(),
+    openCount: () => db.prepare('SELECT COUNT(*) n FROM jobs WHERE closed = 0').get().n,
+    setMeta: (k, v) => db.prepare('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(k, v),
+    getMeta: k => db.prepare('SELECT value FROM meta WHERE key = ?').get(k)?.value ?? null,
+    /** Filtered, paged job list for the dashboard. status 'active' = everything except skipped/rejected. */
+    list({ status = 'active', min = 0, q = '', company = '', sort = 'score', limit = 50, offset = 0 } = {}) {
+      const where = ['j.closed = 0', 'COALESCE(a.score, 0) >= :min'];
+      if (status === 'active') where.push("a.status NOT IN ('skipped', 'rejected')");
+      else if (status && status !== 'all') where.push('a.status = :status');
+      if (q) where.push('(j.title LIKE :q OR j.company LIKE :q OR j.location LIKE :q)');
+      if (company) where.push('j.company = :company');
+      const order = { score: 'a.score DESC, j.posted_at DESC', posted: 'j.posted_at DESC', updated: 'a.updated_at DESC', company: 'j.company, a.score DESC' }[sort] || 'a.score DESC';
+      const params = { min: Number(min) || 0, status, q: `%${q}%`, company };
+      const base = `FROM applications a JOIN jobs j ON j.id = a.job_id WHERE ${where.join(' AND ')}`;
+      const used = Object.fromEntries(Object.entries(params).filter(([k]) => base.includes(':' + k)));
+      const total = db.prepare(`SELECT COUNT(*) n ${base}`).get(used).n;
+      const rows = db.prepare(`SELECT a.job_id id, a.status, a.score, a.note, a.updated_at, a.tailored_path, j.company, j.title, j.location, j.remote, j.ats, j.posted_at ${base} ORDER BY ${order} LIMIT :limit OFFSET :offset`)
+        .all({ ...used, limit: Math.min(Number(limit) || 50, 500), offset: Number(offset) || 0 });
+      return { total, rows };
+    },
+    companies: () => db.prepare("SELECT j.company, COUNT(*) n FROM applications a JOIN jobs j ON j.id = a.job_id WHERE j.closed = 0 AND a.status NOT IN ('skipped','rejected') GROUP BY j.company ORDER BY n DESC").all(),
     /** Resolve a short id prefix (or full id) to a job id. */
     resolve(ref) {
       const rows = db.prepare('SELECT id FROM jobs WHERE id = ? OR id LIKE ? OR external_id = ? LIMIT 2').all(ref, `%${ref}%`, ref);

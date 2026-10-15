@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>applio dashboard</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22%3E%3Cpath d=%22M12 3 3 21h4.2L12 11.4 16.8 21H21z%22/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 21h4.2L12 11.4 16.8 21H21z"/></svg>applio</div>
+    <div class="top__meta" id="scanMeta">—</div>
+    <div class="top__actions">
+      <span class="pill" id="llmPill" title="Claude tailoring and answers">Claude: —</span>
+      <button class="btn" id="tailorTopBtn" title="Tailor the top 5 matched jobs">Tailor top 5</button>
+      <button class="btn btn--primary" id="scanBtn">Scan boards</button>
+      <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="kpis" id="kpis" aria-label="Pipeline totals"></section>
+
+    <section class="card pipeline" aria-labelledby="pipeTitle">
+      <div class="card__head"><h2 id="pipeTitle">Pipeline</h2><span class="muted" id="pipeTotal"></span></div>
+      <div class="pipebar" id="pipebar" role="img"></div>
+      <ul class="legend" id="legend"></ul>
+    </section>
+
+    <section class="card" aria-labelledby="jobsTitle">
+      <div class="card__head">
+        <h2 id="jobsTitle">Jobs</h2>
+        <span class="muted" id="jobsCount"></span>
+      </div>
+      <div class="filters">
+        <div class="seg" id="statusSeg" role="tablist" aria-label="Status filter"></div>
+        <input type="search" id="q" placeholder="Search title, company, location…" aria-label="Search">
+        <select id="company" aria-label="Company"><option value="">All companies</option></select>
+        <label class="range">Min score <input type="range" id="min" min="0" max="100" step="5" value="0"><output id="minOut">0</output></label>
+        <select id="sort" aria-label="Sort"><option value="score">Best match</option><option value="posted">Newest</option><option value="updated">Recently updated</option><option value="company">Company</option></select>
+      </div>
+      <div class="table-wrap">
+        <table class="jobs">
+          <thead><tr><th>Score</th><th>Role</th><th>Company</th><th>Location</th><th>Status</th><th>Posted</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <div class="pager"><button class="btn" id="prev">← Prev</button><span class="muted" id="pageInfo"></span><button class="btn" id="next">Next →</button></div>
+    </section>
+  </main>
+
+  <aside class="drawer" id="drawer" aria-hidden="true" aria-labelledby="dTitle">
+    <div class="drawer__head">
+      <div><h2 id="dTitle"></h2><p class="muted" id="dSub"></p></div>
+      <button class="icon-btn" id="closeDrawer" aria-label="Close">✕</button>
+    </div>
+    <div class="drawer__body" id="dBody"></div>
+  </aside>
+  <div class="scrim" id="scrim"></div>
+
+  <div class="tasks" id="tasks" aria-live="polite"></div>
+  <div class="tooltip" id="tooltip" role="tooltip"></div>
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

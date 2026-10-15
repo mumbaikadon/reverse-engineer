@@ -2,7 +2,7 @@
 // applio — command-line front end for the job application pipeline.
 //   discover (scan) → score (jobs) → tailor → approve → apply → track (board)
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseArgs } from 'node:util';
 
@@ -13,10 +13,10 @@ if ((process.env.HTTPS_PROXY || process.env.https_proxy) && !process.env.NODE_US
 }
 
 const { open, STATUSES } = await import('./db.js');
-const { scanAll } = await import('./sources/index.js');
-const { rank, score } = await import('./match.js');
-const { loadProfile, loadResume, loadCompanies } = await import('./profile.js');
-const { hasCredentials, MODEL } = await import('./llm.js');
+const { rank } = await import('./match.js');
+const { loadProfile } = await import('./profile.js');
+const actions = await import('./actions.js');
+const { rowToJob } = actions;
 
 const HELP = `applio — self-hosted job application agent
 
@@ -37,6 +37,8 @@ Usage: applio <command> [options]
   mark <job> <status>        Set status manually (${STATUSES.join(', ')})
   skip <job>                 Mark a job as not interesting
   board                      Pipeline overview by status
+  serve [--port 4317] [--host 127.0.0.1]
+                             Start the web dashboard
 
 <job> is a job id or any unique fragment of it (e.g. the numeric posting id).
 Data lives in data/applio.db; generated files in out/.`;
@@ -46,6 +48,7 @@ const cmd = argv[0];
 const { values: opt, positionals: pos } = parseArgs({
   args: argv.slice(1), allowPositionals: true, strict: false,
   options: {
+    port: { type: 'string' }, host: { type: 'string' },
     min: { type: 'string' }, limit: { type: 'string' }, top: { type: 'string' }, every: { type: 'string' },
     submit: { type: 'boolean' }, headed: { type: 'boolean' }, base: { type: 'boolean' }, all: { type: 'boolean' },
     db: { type: 'string', default: process.env.APPLIO_DB || 'data/applio.db' },
@@ -69,6 +72,10 @@ async function main() {
     case 'mark': return mark(pos[0], pos[1]);
     case 'apply': return apply(pos[0]);
     case 'board': return board();
+    case 'serve': {
+      const { serve } = await import('./server.js');
+      return serve({ port: Number(opt.port || process.env.PORT || 4317), host: opt.host || '127.0.0.1', dbPath: opt.db });
+    }
     default: console.log(HELP); if (cmd && cmd !== 'help' && cmd !== '--help') process.exitCode = 1;
   }
 }
@@ -82,29 +89,11 @@ function init() {
 }
 
 async function scan({ quiet = false } = {}) {
-  const db = open(opt.db), profile = loadProfile(), companies = loadCompanies();
-  const t0 = Date.now();
-  const { jobs: found, errors } = await scanAll(companies, {
-    onBoard: (co, n, err) => !quiet && console.log(c.dim(`  ${pad(co.name || co.slug || co.tenant, 14)} ${err ? c.red(err.message) : `${n} open roles`}`)),
-  });
-  const fresh = db.saveJobs(found);
-  const closed = db.closeMissing(companies.filter(co => !errors.some(e => e.company === co)).map(co => co.slug || co.tenant), found.map(j => j.id));
-
-  // Score anything without an application row yet; keep the ones above the bar.
-  const prefs = profile.preferences;
-  const min = prefs.minScore ?? 60;
-  const newMatches = [];
-  for (const row of db.openJobs()) {
-    if (db.app(row.id)) continue;
-    const r = score(rowToJob(row), prefs);
-    if (r.excluded || r.score < min) continue;
-    db.setApp(row.id, { status: 'matched', score: r.score, reasons: JSON.stringify(r.reasons) });
-    newMatches.push({ row, ...r });
-  }
-  console.log(`\nScanned ${companies.length} boards in ${((Date.now() - t0) / 1000).toFixed(1)}s: ${found.length} open roles, ${fresh.length} new, ${closed} closed, ${errors.length} board errors.`);
-  console.log(`${c.green(newMatches.length + ' new matches')} at score ≥ ${min}.`);
-  for (const m of newMatches.sort((a, b) => b.score - a.score).slice(0, 15)) console.log(`  ${c.bold(String(m.score).padStart(3))}  ${pad(m.row.company, 12)} ${pad(m.row.title, 52)} ${c.dim(shortId(m.row.id))}`);
-  return newMatches;
+  const db = open(opt.db);
+  const r = await actions.scan(db, { log: line => !quiet && console.log(c.dim('  ' + line)) });
+  if (quiet) console.log(`${r.open} open roles, ${r.fresh} new, ${r.matches} new matches.`);
+  for (const m of r.newMatches.slice(0, 15)) console.log(`  ${c.bold(String(m.score).padStart(3))}  ${pad(m.row.company, 12)} ${pad(m.row.title, 52)} ${c.dim(shortId(m.row.id))}`);
+  return r.newMatches;
 }
 
 async function watch() {
@@ -115,10 +104,6 @@ async function watch() {
     try { await scan({ quiet: true }); } catch (e) { console.error(c.red(e.message)); }
     await new Promise(r => setTimeout(r, every * 60_000));
   }
-}
-
-function rowToJob(r) {
-  return { id: r.id, ats: r.ats, company: r.company, title: r.title, location: r.location, remote: !!r.remote, description: r.description || '', postedAt: r.posted_at, externalId: r.external_id, url: r.url, applyUrl: r.apply_url };
 }
 
 function jobs() {
@@ -153,25 +138,12 @@ function show(ref) {
 }
 
 async function tailorCmd() {
-  if (!hasCredentials()) throw new Error('Set ANTHROPIC_API_KEY to tailor résumés with Claude.');
-  const { tailor } = await import('./tailor.js');
-  const { renderPdf } = await import('./render.js');
-  const db = open(opt.db), profile = loadProfile(), resume = loadResume();
-  const ids = opt.top
-    ? db.board('matched').slice(0, Math.min(Number(opt.top), profile.preferences.dailyTailorLimit ?? 15)).map(r => r.job_id)
-    : [db.resolve(pos[0])];
+  const db = open(opt.db);
+  const ids = opt.top ? actions.topMatched(db, Number(opt.top)) : [db.resolve(pos[0])];
   if (!ids.length) return console.log('No matched jobs waiting. Run "applio scan" first.');
   for (const id of ids) {
-    const job = rowToJob(db.job(id));
-    process.stdout.write(`Tailoring ${job.title} @ ${job.company} with ${MODEL}… `);
-    const r = await tailor({ job, profile, resume });
-    await renderPdf(readFileSync(join(r.dir, 'resume.md'), 'utf8'), join(r.dir, 'resume.pdf'));
-    await renderPdf(readFileSync(join(r.dir, 'cover_letter.txt'), 'utf8').split('\n').join('\n\n'), join(r.dir, 'cover_letter.pdf'));
-    db.setApp(id, { status: 'tailored', tailored_path: r.dir });
-    db.log(id, 'tailor', `${r.accepted.length} edits kept, ${r.rejected.length} rejected by fact check`);
-    console.log(c.green('done'));
-    console.log(c.dim(`  ${r.accepted.length} bullet edits, ${r.rejected.length} rejected by fact check · review ${join(r.dir, 'changes.md')}`));
-    if (r.data.keywords_missing.length) console.log(c.dim(`  gaps (not claimed): ${r.data.keywords_missing.join(', ')}`));
+    const r = await actions.tailorJob(db, id, { log: line => console.log(c.dim('  ' + line)) });
+    console.log(`  review ${join(r.dir, 'changes.md')}`);
   }
   console.log(`\nReview the changes, then ${c.bold('applio approve <job>')} and ${c.bold('applio apply <job> --submit')}.`);
 }
@@ -186,43 +158,15 @@ function mark(ref, status) {
 }
 
 async function apply(ref) {
-  const { fillApplication } = await import('./apply/filler.js');
-  const { answerQuestions } = await import('./answers.js');
-  const { renderPdf } = await import('./render.js');
-  const db = open(opt.db), profile = loadProfile(), resume = loadResume();
-  const id = db.resolve(ref), row = db.job(id), app = db.app(id) || {};
-  if (row.closed) throw new Error('This posting is closed.');
-  if (opt.submit && app.status !== 'approved') throw new Error('Approve it first ("applio approve <job>") — nothing is submitted without your review.');
-
-  const dir = app.tailored_path || join('out', id.replace(/[^a-z0-9]+/gi, '-'));
-  mkdirSync(dir, { recursive: true });
-  const files = {};
-  if (!opt.base && app.tailored_path && existsSync(join(dir, 'resume.pdf'))) {
-    files.resume = join(dir, 'resume.pdf');
-    files.coverLetter = join(dir, 'cover_letter.pdf');
-  } else {
-    files.resume = await renderPdf(resume, join(dir, 'resume-base.pdf'));
-  }
-  const coverLetter = existsSync(join(dir, 'cover_letter.txt')) ? readFileSync(join(dir, 'cover_letter.txt'), 'utf8') : '';
-  const job = rowToJob(row);
-
-  console.log(`${opt.submit ? 'Applying to' : 'Dry run (no submit):'} ${row.title} @ ${row.company}\n${c.dim(row.apply_url)}`);
-  const result = await fillApplication({
-    job: row, files, submit: !!opt.submit, headed: !!opt.headed, outDir: join(dir, 'apply'),
-    answer: fields => answerQuestions({ questions: fields, job, profile, resume, coverLetter }),
-  });
-
+  const db = open(opt.db), id = db.resolve(ref);
+  console.log(c.dim(db.job(id).apply_url));
+  const result = await actions.applyJob(db, id, { submit: !!opt.submit, headed: !!opt.headed, base: !!opt.base, log: line => console.log(line) });
   for (const f of result.receipt.fields) {
     const mark = f.source === 'missing' || String(f.source).startsWith('error') ? (f.required ? c.red('✗') : c.yellow('○')) : c.green('✓');
     const v = typeof f.value === 'string' ? f.value.replace(/\s+/g, ' ') : String(f.value ?? '');
     console.log(`  ${mark} ${pad(f.label || '(unlabelled)', 48)} ${pad(v, 60)} ${c.dim(f.source)}`);
   }
-  const status = result.status === 'filled' ? (app.status || 'matched') : result.status;
-  db.setApp(id, { status, receipt_path: join(dir, 'apply'), note: result.note || null, ...(app.score == null ? { score: 0 } : {}) });
-  db.log(id, 'apply', `${result.status}${result.note ? ': ' + result.note : ''}`);
-  writeFileSync(join(dir, 'apply', 'answers.md'), result.receipt.fields.map(f => `**${f.label}**\n${f.value ?? ''}\n`).join('\n'));
-  console.log(`\n${result.status === 'submitted' ? c.green('Submitted.') : result.status === 'filled' ? 'Form filled, not submitted.' : c.yellow('Needs you: ' + result.note)}`);
-  console.log(c.dim(`Screenshot and receipt: ${join(dir, 'apply')}`));
+  console.log(c.dim(`Screenshot and receipt: ${result.dir}`));
 }
 
 function board() {

@@ -10,17 +10,66 @@ A self-hosted job application agent. It does the four things auto-apply products
 | **Apply** | Opens the real application form in headless Chromium, reads every field and label, answers from your profile (Claude writes the open-ended answers), uploads the PDFs, and saves a screenshot + receipt. It only clicks submit with `--submit` on a job you approved. | `src/apply/filler.js`, `src/answers.js`, `applio apply` |
 | **Track** | SQLite pipeline with status history (`matched → tailored → approved → submitted → interview …`). | `src/db.js`, `applio board` |
 
-## Setup
+## Run it on your computer
 
-Requires Node 22.5+ (uses the built-in `node:sqlite`).
+You need **Node.js 22.13 or newer** (`node -v` to check; install from [nodejs.org](https://nodejs.org) if needed) and **git**.
 
 ```bash
+# 1. Get the code
+git clone https://github.com/mumbaikadon/reverse-engineer.git
+cd reverse-engineer
+git checkout claude/great-thompson-xywco1
+
+# 2. Install dependencies and the browser used for filling forms (~150 MB, once)
 npm install
-npx playwright install chromium     # skip if you already have a Chromium (see APPLIO_CHROMIUM below)
-node src/cli.js init                # creates config/profile.json, config/companies.json, resume/resume.md
+npx playwright install chromium
+
+# 3. Check everything works: 20 tests, including a real fill-and-submit on a local test form
+npm test
+
+# 4. Create your own config files (git-ignored, so your details never get committed)
+node src/cli.js init
+
+# 5. Start the dashboard
+npm run dashboard
 ```
 
-Then edit:
+Open **http://localhost:4317** and press **Scan boards**. The first scan pulls about 5,000 postings from the example companies in roughly 15 seconds.
+
+### Trying it out safely
+
+Nothing reaches an employer until you approve a job **and** press Submit (or run `apply --submit`), so this is a safe way to explore:
+
+1. **Scan** with the example profile and résumé still in place, and look through the matches. Click a row to see why it matched.
+2. Click **Dry run** on any job. A headless browser opens the real application form, fills it in, takes a screenshot and stops without submitting. Afterwards the panel shows every field, the value used and where it came from, with a link to the screenshot.
+3. Put in your real details: `resume/resume.md`, `config/profile.json` (contact info, work authorization, `preferences`) and `config/companies.json` (the companies you want). Scan again and the scores update to match you.
+4. To turn on résumé tailoring and AI-written answers, stop the server (Ctrl-C), set your key and restart:
+   - macOS / Linux: `export ANTHROPIC_API_KEY=sk-ant-...`
+   - Windows PowerShell: `$env:ANTHROPIC_API_KEY="sk-ant-..."`
+
+   The header pill changes to **Claude: on**. Click **Tailor** on a job, review the bullet changes and cover letter in the panel, then **Approve**, then **Dry run** again to see the tailored PDFs uploaded.
+5. Press **Submit** only on a job you want to apply to. It asks for confirmation first.
+
+To see the browser while it fills a form, use the CLI: `node src/cli.js apply <job> --headed`.
+
+To start over, delete the `data/` folder (the database) and `out/` (generated PDFs and screenshots).
+
+## Dashboard
+
+`npm run dashboard` (same as `node src/cli.js serve [--port 4317]`) serves a local web UI over the same database the CLI uses:
+
+- **Header:** last scan summary, Claude on/off, **Scan boards**, **Tailor top 5**, light/dark toggle.
+- **Totals:** open roles, matched, tailored, approved, submitted and needs-you counts. Click one to filter the table.
+- **Pipeline bar:** how many jobs sit at each stage (hover for counts, click to filter). Stages run light to dark blue; "needs you" (⚠) and "failed" (✕) use warning colors.
+- **Jobs table:** filter by status, search, company and minimum score; sort by match, newest, recently updated or company.
+- **Job panel:** match reasons, actions (Tailor, Approve, Dry run, Submit, set status), the tailored bullet diff with anything the fact check rejected, cover letter, the field-by-field record of the last form fill with its screenshot, links to the PDFs, the full description and the job's history.
+- Long operations run in a background queue, one browser at a time, with progress cards in the bottom-right corner.
+
+The server listens on `127.0.0.1` only. It can submit applications in your name, so don't expose it with `--host 0.0.0.0` on a network you don't trust. Every state-changing request must carry an `X-Applio` header, which stops other websites open in your browser from triggering actions on it.
+
+## Setup details
+
+After `node src/cli.js init`, edit:
 
 - **`resume/resume.md`** — your résumé in Markdown. Use `## Summary`, `## Experience` (bullets starting with `- `) and `## Skills` (comma-separated) so tailoring can edit those sections.
 - **`config/profile.json`** — contact details, work authorization, and `preferences` (titles, skills, locations, seniority, `minScore`). The `answers` list holds your own standing answers to recurring questions (`{"match": "<regex>", "answer": "No"}`). Demographic questions are answered "decline" unless you fill in `eeo`.
@@ -84,7 +133,7 @@ Behind an HTTP proxy (`HTTPS_PROXY` set), the CLI re-runs itself with `NODE_USE_
 npm test
 ```
 
-These cover the four source normalizers, scoring, the tailoring fact check, profile answer mapping, the database, and an end-to-end fill-and-submit against a local fixture form (`test/fixtures/form.html`).
+These cover the four source normalizers, scoring, the tailoring fact check, profile answer mapping, the database, the dashboard API (including its CSRF and file-path guards), and an end-to-end fill-and-submit against a local fixture form (`test/fixtures/form.html`).
 
 ## Limits
 
