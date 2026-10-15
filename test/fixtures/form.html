@@ -1,0 +1,20 @@
+<!doctype html>
+<html><body>
+<h1>Platform Engineer — Apply</h1>
+<form id="application-form" onsubmit="event.preventDefault(); document.body.innerHTML = '<h1>Thank you for applying!</h1>'">
+  <div><label for="fn">First Name *</label><input id="fn" name="first_name" required></div>
+  <div><label for="ln">Last Name *</label><input id="ln" name="last_name" required></div>
+  <div><label for="em">Email *</label><input id="em" type="email" name="email" required></div>
+  <div><label for="ph">Phone</label><input id="ph" type="tel" name="phone"></div>
+  <div><label for="li">LinkedIn Profile</label><input id="li" name="urls[LinkedIn]"></div>
+  <div><label for="cv">Resume/CV *</label><input id="cv" type="file" name="resume" required></div>
+  <div><label for="auth">Are you legally authorized to work in the United States? *</label>
+    <select id="auth" name="auth" required><option value="">Select...</option><option>Yes</option><option>No</option></select></div>
+  <fieldset><legend>Will you now or in the future require visa sponsorship?</legend>
+    <label><input type="radio" name="sponsor" value="y"> Yes</label><label><input type="radio" name="sponsor" value="n"> No</label></fieldset>
+  <div><label for="why">Why do you want to work here? *</label><textarea id="why" name="why" required></textarea></div>
+  <div><label for="g">Gender</label><select id="g" name="gender"><option value="">Select...</option><option>Male</option><option>Female</option><option>Decline to self-identify</option></select></div>
+  <div><label><input type="checkbox" name="privacy" required> I acknowledge the privacy notice *</label></div>
+  <button type="submit">Submit application</button>
+</form>
+</body></html>

@@ -1,0 +1,21 @@
+[
+  { "ats": "greenhouse", "slug": "stripe", "name": "Stripe" },
+  { "ats": "greenhouse", "slug": "airbnb", "name": "Airbnb" },
+  { "ats": "greenhouse", "slug": "figma", "name": "Figma" },
+  { "ats": "greenhouse", "slug": "discord", "name": "Discord" },
+  { "ats": "greenhouse", "slug": "dropbox", "name": "Dropbox" },
+  { "ats": "greenhouse", "slug": "databricks", "name": "Databricks" },
+  { "ats": "greenhouse", "slug": "robinhood", "name": "Robinhood" },
+  { "ats": "greenhouse", "slug": "datadog", "name": "Datadog" },
+  { "ats": "greenhouse", "slug": "cloudflare", "name": "Cloudflare" },
+  { "ats": "greenhouse", "slug": "anthropic", "name": "Anthropic" },
+  { "ats": "lever", "slug": "palantir", "name": "Palantir" },
+  { "ats": "lever", "slug": "spotify", "name": "Spotify" },
+  { "ats": "ashby", "slug": "ramp", "name": "Ramp" },
+  { "ats": "ashby", "slug": "notion", "name": "Notion" },
+  { "ats": "ashby", "slug": "linear", "name": "Linear" },
+  { "ats": "ashby", "slug": "openai", "name": "OpenAI" },
+  { "ats": "ashby", "slug": "cursor", "name": "Cursor" },
+  { "ats": "ashby", "slug": "replit", "name": "Replit" },
+  { "ats": "workday", "host": "nvidia.wd5.myworkdayjobs.com", "tenant": "nvidia", "site": "NVIDIAExternalCareerSite", "name": "NVIDIA", "searchText": "software engineer", "maxJobs": 100 }
+]
