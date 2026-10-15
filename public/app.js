@@ -77,14 +77,14 @@ async function loadSummary() {
   $('#legend').innerHTML = [...STAGES, ...Object.keys(EXCEPTIONS)].map(k => `<li data-k="${k}"><span class="swatch" style="background:${colorOf(k)}"></span>${EXCEPTIONS[k] ? EXCEPTIONS[k].icon + ' ' : ''}${LABEL[k]} <b>${(c[k] || 0).toLocaleString()}</b></li>`).join('');
   $('#legend').querySelectorAll('li').forEach(li => li.onclick = () => setStatus(li.dataset.k));
 
-  const missing = Object.entries(s.setup).filter(([, ok]) => !ok).map(([k]) => k === 'resume' ? 'résumé' : k);
+  const missing = ['resume', 'profile'].filter(k => !s.setup[k]).map(k => k === 'resume' ? 'résumé' : k);
   $('#setupBanner').hidden = !missing.length;
   $('#setupBanner').innerHTML = missing.length ? `<b>Finish setting up:</b> add your ${missing.join(', ')}. <a class="btn btn--primary" href="#/welcome">Continue setup</a>` : '';
-  $('#scanBtn').disabled = !s.setup.companies || !s.setup.profile;
-  $('#scanBtn').title = $('#scanBtn').disabled ? 'Add your profile and companies in Settings first' : 'Pull new postings from every company in your watchlist';
+  $('#scanBtn').disabled = !s.setup.profile;
+  $('#scanBtn').title = $('#scanBtn').disabled ? 'Upload your résumé first' : 'Search every company for new roles that match you';
 
   const ls = s.lastScan;
-  $('#scanMeta').textContent = ls ? `Last scan ${ago(ls.at)} · ${ls.open.toLocaleString()} roles across ${ls.boards} boards · ${ls.fresh} new · ${ls.matches} new matches` : 'No scan yet — press "Scan boards".';
+  $('#scanMeta').textContent = ls ? `Last scan ${ago(ls.at)} · ${ls.boards} companies searched${ls.searched ? ` (${ls.recentDays}-day window)` : ''} · ${ls.fresh} new roles · ${ls.matches} new matches` : 'No scan yet — press "Find jobs".';
   $('#llmPill').textContent = s.llm.enabled ? `AI: ${s.llm.label}` : 'AI: off';
   $('#llmPill').className = `pill ${s.llm.enabled ? 'on' : 'off'}`;
   $('#llmPill').title = s.llm.enabled ? `Tailoring and answers use ${s.llm.label} (${s.llm.model}). Change in Settings → Integrations.` : 'Add a Claude or OpenAI key in Settings → Integrations to enable tailoring and AI answers';
@@ -245,7 +245,7 @@ async function route() {
   if (!w && !m) {
     if (!state.summary) await loadSummary().catch(() => {});
     const s = state.summary?.setup;
-    if (s && !(s.resume && s.profile && s.companies)) { location.replace('#/welcome'); return; }
+    if (s && !(s.resume && s.profile)) { location.replace('#/welcome'); return; }
   }
   document.body.classList.toggle('onboarding', !!w);
   $('#welcome').hidden = !w;

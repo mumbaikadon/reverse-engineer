@@ -260,3 +260,11 @@ body.onboarding .top__actions > :not(#themeBtn), body.onboarding .top__meta { vi
 .wz__body input:not([type=checkbox]):not([type=radio]) { font: inherit; font-size: 13.5px; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--surface); color: var(--ink); width: 100%; }
 .wz__body .tags input { width: auto; }
 .btn--lg { padding: 9px 18px; font-size: 14px; }
+.found-profile { display: grid; gap: 8px; margin: 0; padding: 14px 16px; border-radius: 10px; background: var(--surface-2); }
+.found-profile div { display: grid; grid-template-columns: 120px 1fr; gap: 12px; }
+.found-profile dt { color: var(--ink-3); font-size: 13px; }
+.found-profile dd { margin: 0; font-size: 14px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.chip-s { font-size: 12.5px; padding: 1px 8px; border-radius: 99px; background: var(--surface); border: 1px solid var(--border); }
+.missing { display: grid; gap: 10px; padding: 14px 16px; border-radius: 10px; border: 1px solid var(--warning); margin-bottom: 12px; }
+.missing p { margin: 0; }
+@media (max-width: 640px) { .found-profile div { grid-template-columns: 1fr; gap: 2px; } }

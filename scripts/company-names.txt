@@ -1,0 +1,695 @@
+Stripe
+Airbnb
+Figma
+Discord
+Dropbox
+Databricks
+Robinhood
+Datadog
+Cloudflare
+Anthropic
+Palantir
+Spotify
+Ramp
+Notion
+Linear
+OpenAI
+Cursor
+Replit
+Coinbase
+Instacart
+DoorDash
+Lyft
+Pinterest
+Reddit
+Snowflake
+MongoDB
+Elastic
+HashiCorp
+GitLab
+Asana
+Airtable
+Brex
+Plaid
+Chime
+Affirm
+SoFi
+Gusto
+Rippling
+Deel
+Remote
+Lattice
+Carta
+Mercury
+Retool
+Vercel
+Netlify
+Supabase
+PlanetScale
+Cockroach Labs
+Grafana Labs
+Sentry
+PagerDuty
+Twilio
+Segment
+Amplitude
+Mixpanel
+Heap
+FullStory
+LaunchDarkly
+Postman
+Kong
+Confluent
+Fivetran
+dbt Labs
+Airbyte
+Census
+Hightouch
+Monte Carlo
+Hex
+Mode
+Sigma Computing
+ThoughtSpot
+Looker
+Scale AI
+Hugging Face
+Cohere
+Mistral
+Perplexity
+Runway
+Character AI
+Glean
+Harvey
+Jasper
+Writer
+Grammarly
+Canva
+Miro
+Loom
+Calendly
+Zapier
+Webflow
+Framer
+Squarespace
+Wix
+Shopify
+BigCommerce
+Faire
+Etsy
+Wayfair
+Chewy
+Peloton
+Strava
+Duolingo
+Coursera
+Udemy
+Quizlet
+Chegg
+Khan Academy
+Headspace
+Calm
+Noom
+Hinge Health
+Ro
+Hims
+Oscar Health
+Devoted Health
+Cityblock Health
+Tempus
+Flatiron Health
+Benchling
+Color
+23andMe
+Zocdoc
+Doximity
+Abridge
+Spring Health
+Lyra Health
+Modern Health
+Cerebral
+Carbon Health
+One Medical
+Nomi Health
+Komodo Health
+Verily
+Samsara
+Motive
+Flexport
+Convoy
+project44
+Zipline
+Anduril
+Shield AI
+SpaceX
+Relativity Space
+Rocket Lab
+Planet
+Astranis
+Hermeus
+Boom Supersonic
+Joby Aviation
+Archer
+Wisk
+Aurora
+Nuro
+Waymo
+Cruise
+Zoox
+Rivian
+Lucid Motors
+Tesla
+Redwood Materials
+Commonwealth Fusion Systems
+Helion
+Arcadia
+Watershed
+Patch
+Pachama
+Sweep
+Persefoni
+Opendoor
+Compass
+Zillow
+Redfin
+Pacaso
+Divvy Homes
+Roofstock
+Bilt Rewards
+Marqeta
+Toast
+Square
+Block
+Wise
+Revolut
+Monzo
+N26
+Klarna
+Checkout.com
+Adyen
+Rapyd
+Payoneer
+Melio
+Bill
+Tipalti
+Navan
+Expensify
+Pilot
+Bench
+Mercury
+Modern Treasury
+Unit
+Synctera
+Treasury Prime
+Alloy
+Persona
+Socure
+Sardine
+Unit21
+Chainalysis
+Fireblocks
+Anchorage Digital
+Kraken
+Gemini
+Circle
+Ripple
+Consensys
+Alchemy
+Uniswap Labs
+OpenSea
+Dapper Labs
+Phantom
+Ledger
+Polygon
+Aptos
+Sui
+Solana Foundation
+Figure
+Better
+Blend
+Snapdocs
+Qualia
+Ironclad
+Clio
+EvenUp
+Spellbook
+Checkr
+Gem
+Greenhouse
+Lever
+Ashby
+Workday
+Lattice
+Culture Amp
+15Five
+Leapsome
+BambooHR
+HiBob
+Justworks
+TriNet
+Paylocity
+Paycor
+Oyster
+Velocity Global
+Papaya Global
+Multiplier
+Atlassian
+Slack
+Zoom
+Box
+DocuSign
+HubSpot
+Zendesk
+Intercom
+Front
+Freshworks
+Gorgias
+Kustomer
+Help Scout
+Dialpad
+Aircall
+RingCentral
+Gong
+Outreach
+Salesloft
+Apollo
+ZoomInfo
+Clari
+People.ai
+Highspot
+Seismic
+Showpad
+Vanta
+Drata
+Secureframe
+Snyk
+Wiz
+Lacework
+Orca Security
+CrowdStrike
+SentinelOne
+Abnormal Security
+Tines
+Huntress
+Arctic Wolf
+Netskope
+Zscaler
+Okta
+Auth0
+1Password
+Bitwarden
+Tailscale
+Teleport
+Chainguard
+Socket
+Semgrep
+Sourcegraph
+GitHub
+Docker
+JFrog
+CircleCI
+Buildkite
+Harness
+Temporal
+Render
+Railway
+Fly.io
+DigitalOcean
+Linode
+Fastly
+Akamai
+Netflix
+Hulu
+Roku
+Twitch
+Patreon
+Substack
+Medium
+Quora
+Nextdoor
+Bumble
+Grindr
+Tinder
+Match Group
+Snap
+TikTok
+ByteDance
+Niantic
+Riot Games
+Epic Games
+Roblox
+Unity
+Scopely
+Zynga
+Supercell
+Discord
+Mojang
+Valve
+Bungie
+Blizzard
+Activision
+Electronic Arts
+Take-Two
+Playstation
+Nintendo
+Sony
+Apple
+Google
+Meta
+Microsoft
+Amazon
+Salesforce
+Oracle
+SAP
+Adobe
+Intuit
+Autodesk
+ServiceNow
+VMware
+Splunk
+NetApp
+Nutanix
+Pure Storage
+Arista
+Cisco
+Juniper
+Palo Alto Networks
+Fortinet
+IBM
+Intel
+AMD
+Nvidia
+Qualcomm
+Broadcom
+Micron
+Western Digital
+Seagate
+Cerebras
+SambaNova
+Groq
+Lightmatter
+SiFive
+Tenstorrent
+Etched
+d-Matrix
+Rain AI
+Celestial AI
+Ayar Labs
+Astera Labs
+Rigetti
+IonQ
+PsiQuantum
+Quantinuum
+Xanadu
+Weights & Biases
+Pinecone
+Weaviate
+Chroma
+LangChain
+LlamaIndex
+Modal
+Replicate
+Together AI
+Fireworks AI
+Baseten
+Anyscale
+Lambda
+CoreWeave
+Crusoe
+Vast Data
+Cribl
+Observe
+Honeycomb
+Chronosphere
+Lightstep
+New Relic
+Dynatrace
+SolarWinds
+Clickhouse
+Starburst
+Dremio
+Astronomer
+Prefect
+Dagster Labs
+Materialize
+SingleStore
+Neo4j
+Redis
+Couchbase
+Cockroach
+Yugabyte
+Timescale
+InfluxData
+Pinecone
+Neon
+Xata
+Convex
+Firebase
+Appwrite
+Clerk
+Stytch
+WorkOS
+Descope
+Frontegg
+Ory
+Hasura
+Apollo GraphQL
+Prisma
+Turso
+Upstash
+Inngest
+Trigger.dev
+Resend
+Postmark
+SendGrid
+Mailchimp
+Klaviyo
+Braze
+Iterable
+Customer.io
+OneSignal
+Attentive
+Postscript
+Yotpo
+Okendo
+Recharge
+Bolt
+Fast
+Shippo
+ShipBob
+Flexport
+Stord
+Deliverr
+Locus
+Onfleet
+Bringg
+Gopuff
+Getir
+Gorillas
+Wolt
+Deliveroo
+Uber
+Grab
+Gojek
+Ola
+Swiggy
+Zomato
+Razorpay
+Cred
+Zerodha
+Groww
+Meesho
+Flipkart
+PhonePe
+Paytm
+Freshworks
+Postman
+BrowserStack
+Chargebee
+Zoho
+InMobi
+Dunzo
+Ather Energy
+Ola Electric
+Sprinklr
+Druva
+Innovaccer
+Hasura
+Nykaa
+Lenskart
+Urban Company
+Unacademy
+Byju's
+upGrad
+Vedantu
+PhysicsWallah
+Rapido
+OYO
+MakeMyTrip
+Ixigo
+CleverTap
+MoEngage
+WebEngage
+Whatfix
+Darwinbox
+Leena AI
+Yellow.ai
+Haptik
+Gupshup
+Exotel
+Kaleyra
+Mindtickle
+Highradius
+Icertis
+Capillary
+Amagi
+Licious
+FreshToHome
+Zepto
+Blinkit
+BigBasket
+Delhivery
+Shiprocket
+Ecom Express
+Xpressbees
+Rivigo
+BlackBuck
+Porter
+Cars24
+Spinny
+CarDekho
+Acko
+Digit Insurance
+PolicyBazaar
+Ditto
+Jupiter
+Fi Money
+Slice
+Uni Cards
+OneCard
+Juspay
+Cashfree
+PayU
+BharatPe
+Pine Labs
+Khatabook
+OkCredit
+Vyapar
+Zetwerk
+Moglix
+OfBusiness
+Infra.Market
+Udaan
+Jumbotail
+DealShare
+CityMall
+Apna
+WorkIndia
+Instahyre
+Hirect
+Naukri
+Glassdoor
+Indeed
+LinkedIn
+ZipRecruiter
+Hired
+Wellfound
+Otta
+Welcome to the Jungle
+Handshake
+Ripplematch
+Untapped
+Jobber
+ServiceTitan
+Housecall Pro
+Procore
+Buildertrend
+Fieldwire
+OpenSpace
+Built Technologies
+EquipmentShare
+Katerra
+Veev
+Bowery Farming
+Plenty
+AppHarvest
+Apeel
+Impossible Foods
+Beyond Meat
+Oatly
+Sweetgreen
+Cava
+Chipotle
+Starbucks
+Nike
+Adidas
+Allbirds
+Warby Parker
+Glossier
+Away
+Casper
+Brooklinen
+Parachute
+Rent the Runway
+Stitch Fix
+ThredUp
+Poshmark
+The RealReal
+StockX
+GOAT
+Whatnot
+Depop
+Vinted
+Grailed
+Mercari
+OfferUp
+Letgo
+Thumbtack
+TaskRabbit
+Angi
+Yelp
+Nextdoor
+Houzz
+Thumbtack
+Porch
+Hippo
+Lemonade
+Root Insurance
+Kin Insurance
+Next Insurance
+Pie Insurance
+Coalition
+At-Bay
+Corvus
+Newfront
+Vouch
+Embroker
+Clearcover
+Branch
+Openly
+Ethos
+Ladder
+Policygenius
+Bestow
+Haven Life
+Fabric
+Sproutt
+Wealthfront
+Betterment
+Acorns
+Stash
+Public
+Webull
+eToro
+Titan
+Domain Money
+Altruist
+Addepar
+Carta
+AngelList
+Republic
+Wefunder
+Yieldstreet
+Masterworks
+Fundrise
+Arrived
+Landa

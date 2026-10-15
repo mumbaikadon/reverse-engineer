@@ -2,8 +2,8 @@
 // Each takes an open db plus options and reports progress through `log`.
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { scanAll } from './sources/index.js';
-import { score } from './match.js';
+import { scanAll, searchDirectory } from './sources/index.js';
+import { score, titleFilter } from './match.js';
 import { loadProfile, loadResume, loadCompanies, originalPdfPath } from './profile.js';
 import { providerInfo } from './llm.js';
 
@@ -17,12 +17,21 @@ export async function scan(db, { log = () => {} } = {}) {
   const { jobs: found, errors } = await scanAll(companies, {
     onBoard: (co, n, err) => log(`${co.name || co.slug || co.tenant}: ${err ? 'error: ' + err.message : `${n} open roles`}`),
   });
-  const fresh = db.saveJobs(found);
   const okBoards = companies.filter(co => !errors.some(e => e.company === co)).map(co => co.slug || co.tenant);
-  const closed = db.closeMissing(okBoards, found.map(j => j.id));
+  const closed = companies.length ? db.closeMissing(okBoards, found.map(j => j.id)) : 0;
+  const prefs = profile.preferences;
+
+  // Wide search: every company in the directory, recent postings with a matching title only.
+  let wide = { jobs: [], boards: 0, failed: 0 };
+  const days = prefs.recentDays ?? 7;
+  if (prefs.searchAllCompanies !== false) {
+    log(`Searching ${'all companies'} for roles posted in the last ${days} days…`);
+    wide = await searchDirectory({ days, keep: titleFilter(prefs), skip: companies, onProgress: (d, n) => log(`Searched ${d} of ${n} companies`) });
+    log(`Found ${wide.jobs.length} recent matching roles across ${wide.boards} companies.`);
+  }
+  const fresh = db.saveJobs([...found, ...wide.jobs]);
 
   // Score anything without an application row yet; keep the ones above the bar.
-  const prefs = profile.preferences;
   const min = prefs.minScore ?? 60;
   const newMatches = [];
   for (const row of db.openJobs()) {
@@ -33,9 +42,9 @@ export async function scan(db, { log = () => {} } = {}) {
     newMatches.push({ row, ...r });
   }
   newMatches.sort((a, b) => b.score - a.score);
-  const summary = { boards: companies.length, seconds: (Date.now() - t0) / 1000, open: found.length, fresh: fresh.length, closed, errors: errors.length, matches: newMatches.length, minScore: min };
+  const summary = { boards: companies.length + wide.boards, watchlist: companies.length, searched: wide.boards, recentDays: days, recent: wide.jobs.length, seconds: (Date.now() - t0) / 1000, open: found.length + wide.jobs.length, fresh: fresh.length, closed, errors: errors.length + wide.failed, matches: newMatches.length, minScore: min };
   db.setMeta('last_scan', JSON.stringify({ at: new Date().toISOString(), ...summary }));
-  log(`Scanned ${summary.boards} boards in ${summary.seconds.toFixed(1)}s: ${summary.open} open roles, ${summary.fresh} new, ${closed} closed, ${summary.errors} board errors, ${summary.matches} new matches ≥ ${min}.`);
+  log(`Scanned ${summary.boards} company boards in ${summary.seconds.toFixed(1)}s: ${summary.open} open roles, ${summary.fresh} new, ${closed} closed, ${summary.errors} board errors, ${summary.matches} new matches ≥ ${min}.`);
   return { ...summary, newMatches };
 }
 

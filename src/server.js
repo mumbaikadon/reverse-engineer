@@ -10,7 +10,7 @@ import * as actions from './actions.js';
 import { providerInfo, testProvider } from './llm.js';
 import { publicIntegrations, saveIntegrations, PROVIDERS } from './integrations.js';
 import { loadCompanies, loadProfile, readConfig, saveProfile, saveResume, saveCompanies, saveOriginalPdf, getOriginalPdf, draftProfile, suggestedCompanies, setupState } from './profile.js';
-import { useDb, migrateLegacyFiles } from './store.js';
+import { useDb, migrateLegacyFiles, getJSON, setJSON } from './store.js';
 import { detectBoards } from './detect.js';
 
 const PUBLIC = fileURLToPath(new URL('../public/', import.meta.url));
@@ -134,6 +134,42 @@ export function serve({ port = 4317, host = '127.0.0.1', dbPath = 'data/applio.d
         const { input, name } = await readBody(req);
         return send(res, 200, await detectBoards(input, { name }));
       }
+      // ---- hands-off setup: résumé in, profile out ---------------------------------
+      if (path === '/api/setup/resume' && req.method === 'POST') {
+        const { importResumePdf } = await import('./resume-import.js');
+        const { profileFromResume } = await import('./extract.js');
+        let markdown, pages = null, warnings = [];
+        if ((req.headers['content-type'] || '').includes('application/pdf')) {
+          const buf = await readRaw(req, 10e6);
+          ({ markdown, pages, warnings } = await importResumePdf(buf, { tidy: !!providerInfo() }));
+          saveOriginalPdf(buf);
+        } else {
+          markdown = String((await readBody(req)).text || '');
+        }
+        saveResume(markdown);
+        const current = setupState().profile ? loadProfile() : null;
+        const r = await profileFromResume(markdown, current);
+        if (!r.missing.filter(k => k !== 'titles').length) saveProfile(r.profile);
+        setJSON('profile_pending', r.profile);
+        return send(res, 200, { markdown, pages, warnings, ...r, saved: setupState().profile });
+      }
+      if (path === '/api/setup/complete-profile' && req.method === 'POST') {
+        const { name, email, titles } = await readBody(req);
+        const p = getJSON('profile_pending') || (setupState().profile ? loadProfile() : null);
+        if (!p) return send(res, 400, { error: 'Upload your résumé first' });
+        if (name) { p.name = String(name).trim(); const [f, ...r] = p.name.split(/\s+/); p.firstName = f; p.lastName = r.join(' ') || undefined; }
+        if (email) p.email = String(email).trim();
+        if (Array.isArray(titles) && titles.length) p.preferences.titles = titles.map(t => String(t).trim().toLowerCase()).filter(Boolean);
+        saveProfile(p);
+        return send(res, 200, { profile: p, saved: true });
+      }
+      if (path === '/api/setup/reprofile' && req.method === 'POST') {
+        const { profileFromResume } = await import('./extract.js');
+        const r = await profileFromResume(readConfig().resume, setupState().profile ? loadProfile() : null);
+        if (!r.missing.filter(k => k !== 'titles').length) saveProfile(r.profile);
+        return send(res, 200, { ...r, saved: setupState().profile });
+      }
+
       if (path === '/api/config/resume/import' && req.method === 'POST') {
         const buf = await readRaw(req, 10e6);
         const { importResumePdf } = await import('./resume-import.js');
@@ -149,6 +185,7 @@ export function serve({ port = 4317, host = '127.0.0.1', dbPath = 'data/applio.d
       }
       if (path === '/api/config/profile/draft' && req.method === 'GET') return send(res, 200, draftProfile(readConfig().resume));
       if (path === '/api/config/suggested-companies' && req.method === 'GET') return send(res, 200, suggestedCompanies());
+      if (path === '/api/directory' && req.method === 'GET') { const { directory } = await import('./sources/index.js'); return send(res, 200, { count: directory().length }); }
       if (path === '/api/config/resume/preview' && req.method === 'POST') {
         const { markdown } = await readBody(req);
         const { renderPdf } = await import('./render.js');

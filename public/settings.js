@@ -41,6 +41,8 @@ const PROFILE_SECTIONS = [
     ['preferences.seniority', 'Seniority levels', 'multi', { options: SENIORITY }],
     ['preferences.remoteOk', 'Remote roles are fine', 'bool'],
     ['preferences.strictLocation', 'Only show jobs in my preferred locations', 'bool'],
+    ['preferences.searchAllCompanies', 'Search all companies in applio’s directory, not just my list', 'bool'],
+    ['preferences.recentDays', 'Only jobs posted in the last N days (directory search)', 'number'],
     ['preferences.minScore', 'Minimum match score', 'range'],
     ['preferences.dailyTailorLimit', 'Most jobs to tailor in one batch', 'number'],
   ] },
@@ -99,6 +101,8 @@ async function save(kind, body) {
 function renderProfile(el) {
   const p = draft.profile;
   p.preferences ??= {};
+  p.preferences.searchAllCompanies ??= true;
+  p.preferences.recentDays ??= 7;
   const field = ([path, label, type = 'text', o = {}]) => {
     const v = get(p, path);
     const id = 'pf-' + path.replace(/\./g, '-');

@@ -27,6 +27,21 @@ export function normalize(j, { slug, name }) {
   };
 }
 
+/**
+ * Jobs first published in the last `days` whose title passes `keep`, with descriptions fetched
+ * only for those. The plain list (no content) is ~12x smaller than ?content=true.
+ */
+export async function listRecent({ slug, name }, { since, keep }) {
+  const data = await fetchJson(`${BASE}/${slug}/jobs`);
+  const hits = (data.jobs || []).filter(j => new Date(j.first_published || j.updated_at) >= since && keep(j.title));
+  const out = [];
+  for (const j of hits.slice(0, 40)) {
+    try { out.push(normalize(await fetchJson(`${BASE}/${slug}/jobs/${j.id}`), { slug, name })); }
+    catch { out.push(normalize(j, { slug, name })); }
+  }
+  return out;
+}
+
 // The board API also publishes each job's application questions, which lets us
 // prepare answers before ever opening the form.
 export async function questions({ board, externalId }) {

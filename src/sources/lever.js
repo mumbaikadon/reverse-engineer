@@ -6,6 +6,11 @@ export async function list({ slug, name }) {
   return (data || []).map(j => normalize(j, { slug, name }));
 }
 
+/** Recent jobs whose title passes `keep` (these lists already include descriptions). */
+export async function listRecent(board, { since, keep }) {
+  return (await list(board)).filter(j => j.postedAt && new Date(j.postedAt) >= since && keep(j.title));
+}
+
 export function normalize(j, { slug, name }) {
   const location = j.categories?.allLocations?.join(' / ') || j.categories?.location || '';
   const lists = (j.lists || []).map(l => `${l.text}\n${(l.content || '').replace(/<li>/g, '• ').replace(/<[^>]+>/g, '\n')}`).join('\n\n');

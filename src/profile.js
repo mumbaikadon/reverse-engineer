@@ -11,7 +11,8 @@ export const suggestedCompanies = () => JSON.parse(readFileSync(SUGGESTED, 'utf8
 const SETUP = 'Finish setup in the dashboard first (npm run dashboard)';
 export function loadProfile() { const p = getJSON('profile'); if (!p) throw new Error(`No profile yet. ${SETUP}.`); return p; }
 export function loadResume() { const r = getJSON('resume'); if (!r) throw new Error(`No résumé yet. ${SETUP}.`); return r; }
-export function loadCompanies() { const c = getJSON('companies'); if (!c?.length) throw new Error(`No companies yet. ${SETUP}.`); return c; }
+/** The watchlist is optional: the company directory is searched as well. */
+export function loadCompanies() { return getJSON('companies') || []; }
 
 export const setupState = () => ({ resume: has('resume'), profile: has('profile'), companies: (getJSON('companies') || []).length > 0 });
 
@@ -134,7 +135,7 @@ export function draftProfile(md = '') {
     preferences: {
       titles, titleKeywords: keywords, excludeTitleKeywords: ['intern'], excludeCompanies: [],
       skills, locations: city ? [city] : [], remoteOk: true, strictLocation: false, seniority,
-      needsSponsorship: false, minScore: 60, dailyTailorLimit: 15,
+      needsSponsorship: false, minScore: 60, dailyTailorLimit: 15, searchAllCompanies: true, recentDays: 7,
     },
   };
 }

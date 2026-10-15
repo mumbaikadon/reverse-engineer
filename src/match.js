@@ -70,6 +70,20 @@ export function score(job, prefs) {
   return { score: Math.min(100, s), reasons };
 }
 
+/** Cheap title-only pre-filter used before fetching descriptions during a wide search. */
+export function titleFilter(prefs) {
+  const titles = (prefs.titles || []).map(norm);
+  const kws = prefs.titleKeywords || [];
+  const excl = prefs.excludeTitleKeywords || [];
+  const need = kws.length > 1 ? 2 : 1;
+  return title => {
+    const t = norm(title);
+    if (excl.some(x => has(t, x))) return false;
+    if (titles.some(x => t.includes(x))) return true;
+    return kws.filter(k => has(t, k)).length >= need;
+  };
+}
+
 export function rank(jobs, prefs) {
   return jobs.map(job => ({ job, ...score(job, prefs) })).filter(r => !r.excluded).sort((a, b) => b.score - a.score);
 }

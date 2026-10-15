@@ -31,13 +31,12 @@ npm test
 npm run dashboard
 ```
 
-Open **http://localhost:4317**. The first time, a short setup walks you through everything; there are no files to edit:
+Open **http://localhost:4317**. The first time, applio asks for one thing: **your résumé**.
 
-1. **Upload your résumé PDF** (drag it in, or paste the text). applio reads it and shows you the text so you can fix anything it got wrong. Your original PDF is kept.
-2. **About you:** your name, email, phone, location, links, the job titles you want, your skills, locations and level, all **pre-filled from your résumé**. Check them and continue.
-3. **Companies:** tick companies from the suggestions, or type a name or paste a careers link to add any company on Greenhouse, Lever, Ashby or Workday.
-4. **AI (optional):** connect Claude or OpenAI with an API key to get tailored résumés, cover letters and written answers. You can skip this and add it later.
-5. **Find jobs now** scans those companies and opens your scored job list.
+1. **Upload your résumé PDF** (drag it in, or paste the text). applio reads your name, contact details, links, current role, years of experience, skills, level and the job titles to look for, and shows you what it found. There's no form to fill in. If you've connected Claude or OpenAI it uses that for a more thorough reading; otherwise a built-in parser does it. It only asks you something if the résumé doesn't contain it (for example, no email address).
+2. **Companies (optional):** every scan already searches applio's directory of ~300 companies. Tick or add any you especially care about; those are checked for *every* open role, not just recent ones. You can skip this.
+3. **AI (optional):** connect Claude or OpenAI for tailored résumés, cover letters and written answers. Connecting re-reads your résumé with it.
+4. **Find jobs now** searches all those companies and opens your scored job list.
 
 Everything is saved on your computer in applio's local database (`data/applio.db`, git-ignored). Change any of it later in **Settings** (Profile, Résumé, Companies, Integrations). If you used an older version with `config/*.json` and `resume/resume.md`, those are imported automatically the first time you start it.
 
@@ -98,7 +97,14 @@ Every `apply` writes `out/<job>/apply/receipt.json` (each field, the value used,
 
 ## How it works
 
-**What a scan covers.** Each scan calls the public job-board APIs for the companies in your watchlist, and only those. It doesn't search LinkedIn, Indeed or the whole web. For the 19 example companies that is about 5,400 live postings; stored jobs that are no longer listed are marked closed. Scans run when you press **Scan boards** (or `applio scan`). To scan on a timer, run `node src/cli.js watch --every 30` in a second terminal while the dashboard is open. More companies in the watchlist means more jobs.
+**What a scan covers.** Each scan does two things:
+
+- **Every company in applio's directory** (`src/board-directory.json`, about 300 companies on Greenhouse, Lever and Ashby): it lists all their open jobs, keeps the ones **posted in the last 7 days** whose titles match the roles you're looking for, and fetches full descriptions only for those. For Greenhouse this uses the lightweight job list, about 12× smaller than the full one, so a whole scan takes about 30 seconds.
+- **Your own company list, in full:** every open role, however old. Postings that disappear are marked closed.
+
+The window and the on/off switch for the directory search are in Settings → Profile. Greenhouse, Lever and Ashby have no "search all companies" API, so the directory is a list of verified company boards. To add more, put company names in `scripts/company-names.txt` and run `node scripts/build-directory.mjs`. It checks each name against all three job boards and keeps the ones that exist. You can also add companies one by one in Settings → Companies.
+
+Scans run when you press **Find jobs** (or `applio scan`). To scan on a timer, run `node src/cli.js watch --every 30` in a second terminal.
 
 **Discovery.** The career pages for most tech companies are hosted by one of a few applicant-tracking systems, and each publishes the postings as JSON:
 
